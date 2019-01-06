@@ -1,2 +1,2 @@
 # style-vae
-![Travis build](https://travis-ci.org/orgoro/style-vae.svg?branch=master)
+[![Build Status](https://travis-ci.org/orgoro/style-vae.svg?branch=master)](https://travis-ci.org/orgoro/style-vae)
