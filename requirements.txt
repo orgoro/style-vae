@@ -1,0 +1,14 @@
+tensorflow
+sklearn
+git-lfs
+pylint
+pytest
+travis
+pandas
+
+numpy
+matplotlib
+sklearn
+tqdm
+pandas
+fire

@@ -1,0 +1,17 @@
+language: python
+cache: pip
+
+python:
+  - "3.6"
+
+branches:
+  except:
+    - legacy
+
+install:
+  - travis_retry pip install pylint pytest
+  - travis_retry pip install -r requirements.txt
+
+script:
+  - py.test --runslow
+  - pylint style-vae --rcfile=pylint.rc --output-format=parseable
