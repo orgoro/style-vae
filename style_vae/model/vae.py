@@ -19,9 +19,8 @@ class VaeConfig(object):
         self.code_size = code_size
 
 
-class Vae(object):
+class Vae(object, metaclass=abc.ABCMeta):
     """ base class for variational auto encoder """
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, vae_config: VaeConfig):
         self.code_size = vae_config.code_size  # H
