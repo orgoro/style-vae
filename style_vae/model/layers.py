@@ -25,15 +25,19 @@ class VaeLayers(object):
         """scaling noise bi-cubic to fit x and adding it"""
         with tf.variable_scope('Additive-Noise'):
             n = tf.image.resize_bicubic(noise, size=x.shape[1:3], name='resize-noise')
-            return x + n
+            b = tf.Variable(initial_value=tf.ones(shape=(1, 1, 1, tf.shape(x)[-1])), name='b')
+            return x + b * n
 
     @staticmethod
     def stylize(x, style):
         """stylize the feature maps AdaIN in paper"""
         with tf.variable_scope('Stylize'):
+            a_scale = tf.Variable(initial_value=tf.ones(shape=(1, tf.shape(style)[-1])), name='a-scale')
+            a_bias = tf.Variable(initial_value=tf.ones(shape=(1, tf.shape(style)[-1])), name='a-bias')
+            style_affine = style * a_scale + a_bias
             style_len = tf.cast(tf.divide(tf.shape(style)[1], 2), tf.int64, name='style-len')
-            scale = style[:, None, None, :style_len]
-            bias = style[:, None, None, style_len:]
+            scale = style_affine[:, None, None, :style_len]
+            bias = style_affine[:, None, None, style_len:]
         return scale * x + bias
 
     @staticmethod
@@ -58,13 +62,13 @@ class VaeLayers(object):
         return x
 
     @staticmethod
-    def first_cell_up(self, var, f_maps, noise, style, activation='relu'):
+    def first_cell_up(var, f_maps, noise, style, activation='relu'):
         with tf.variable_scope('first-cell-up'):
             x = VaeLayers.additive_noise(var, noise)
             x = VaeLayers.normalize(x)
             x = VaeLayers.stylize(x, style)
             x = VaeLayers.conv3(x, f_maps, activation)
-            x = VaeLayers.additive_noise(var, noise)
+            x = VaeLayers.additive_noise(x, noise)
             x = VaeLayers.normalize(x)
             x = VaeLayers.stylize(x, style)
         return x
@@ -73,7 +77,3 @@ class VaeLayers(object):
     def cell_down(x, f_maps, activation='relu'):
         x = VaeLayers.conv3_stride2(x, f_maps, activation)
         return x
-
-
-if __name__ == '__main__':
-    fire.Fire()
