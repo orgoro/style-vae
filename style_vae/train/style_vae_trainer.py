@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 # 3rd party:
-import abc
+from matplotlib import pyplot as plt
 import tensorflow as tf
 from dataclasses import dataclass
 from tqdm import tqdm
@@ -80,26 +80,40 @@ class StyleVaeTrainer(VaeTrainer):
                 avg_loss += loss
 
             avg_loss /= steps
-            print(f'epoch {e:3}/{self._config.num_epochs:3} --> avg_loss: {avg_loss:.4}')
-
-        self.validate(dataset)
+            progress.set_description(f'epoch {e:3}/{self._config.num_epochs:3} --> avg_loss: {avg_loss:.4}')
+            self.validate(dataset)
 
     def validate(self, dataset):
         steps = dataset.val.shape[0] // self._config.batch_size
+        examples = []
         for e in range(self._config.num_epochs):
             progress = tqdm(range(steps))
+            fetches = self._stub.get_validate_fetch()
             avg_loss = 0
             for step in progress:
                 offset = step * self._config.batch_size
                 img = dataset.val[offset: offset + self._config.batch_size]
-                res = self._sess.run(self._stub.get_validate_fetch(), self._ph.get_feed(img))
+                res = self._sess.run(fetches, self._ph.get_feed(img))
                 loss = res['recon_loss']
                 progress.set_description(
                     f'VAL epoch {e:3}/{self._config.num_epochs:3}|{step:4}/{steps:4} | recon_loss: {loss:.4}')
                 avg_loss += loss
 
+                if step == 0:
+                    examples = [(img[i], res['recon_img'][i]) for i in range(self._config.batch_size)]
+
             avg_loss /= steps
-            print(f'VAL epoch {e:3}/{self._config.num_epochs:3} --> avg_loss: {avg_loss:.4}')
+            progress.set_description(f'VAL epoch {e:3}/{self._config.num_epochs:3} | avg_loss: {avg_loss:.4}')
+
+            cols = 10
+            fig, ax = plt.subplots(2, cols)
+            for i in range(cols):
+                for k in [0, 1]:
+                    cur_ax = ax[k, i]
+                    cur_ax.imshow(examples[i][k])
+                    cur_ax.set_axis_off()
+
+            plt.tight_layout(), plt.show()
 
     def save(self, save_path):
         raise NotImplementedError
