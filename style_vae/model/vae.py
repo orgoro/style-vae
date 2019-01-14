@@ -3,22 +3,27 @@ from __future__ import absolute_import
 from __future__ import division
 
 # 3rd party:
-import fire
+from dataclasses import dataclass
 import abc
 import tensorflow as tf
 
 
+# different category:
+
 # same category:
 
 
-# different category:
-
-
+@dataclass
 class VaeConfig(object):
-    def __init__(self, code_size: int, img_dim: int, batch_size: int):
-        self.code_size = code_size
-        self.img_dim = img_dim
-        self.batch_size = batch_size
+    code_size: int = 100
+    img_dim: int = 32
+    batch_size: int = 64
+
+    def __str__(self):
+        res = 'VaeConfig:\n'
+        for k, v in vars(self).items():
+            res += f'o {k:15}|{v}\n'
+        return res
 
 
 class Vae(object, metaclass=abc.ABCMeta):

@@ -16,7 +16,7 @@ class VaeLayers(object):
         with tf.variable_scope('normalize'):
             # return x * tf.rsqrt(tf.reduce_mean(tf.square(x), axis=1, keepdims=True) + epsilon, name='norm-factor')
             mean, var = tf.nn.moments(x, axes=3)
-            std = tf.sqrt(var)
+            std = tf.sqrt(var + epsilon)
             x = (x - mean[:, :, :, None]) / (std[:, :, :, None] + epsilon)
             return x
 
@@ -32,12 +32,12 @@ class VaeLayers(object):
     def stylize(x, style):
         """stylize the feature maps AdaIN in paper"""
         with tf.variable_scope('Stylize'):
-            a_scale = tf.Variable(initial_value=tf.ones(shape=(1, tf.shape(style)[-1])), name='a-scale')
-            a_bias = tf.Variable(initial_value=tf.ones(shape=(1, tf.shape(style)[-1])), name='a-bias')
+            style_len = style.shape[1]
+            a_scale = tf.Variable(initial_value=tf.ones(shape=(1, style_len)), name='a-scale')
+            a_bias = tf.Variable(initial_value=tf.ones(shape=(1, style_len)), name='a-bias')
             style_affine = style * a_scale + a_bias
-            style_len = tf.cast(tf.divide(tf.shape(style)[1], 2), tf.int64, name='style-len')
-            scale = style_affine[:, None, None, :style_len]
-            bias = style_affine[:, None, None, style_len:]
+            scale = style_affine[:, None, None, :style_len // 2]
+            bias = style_affine[:, None, None, style_len // 2:]
         return scale * x + bias
 
     @staticmethod

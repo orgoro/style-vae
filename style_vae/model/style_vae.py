@@ -27,11 +27,12 @@ class StyleVae(Vae):
 
     def decode(self, code: tf.Tensor):
         noise = tf.random_normal((self.config.batch_size, self.config.img_dim, self.config.img_dim, 1))
-        first_var = tf.Variable(initial_value=tf.zeros((1, 4, 4, self.config.code_size//2)))
-        x = VaeLayers.first_cell_up(first_var, f_maps=self.config.code_size//2, noise=noise, style=code)
+        first_var = tf.Variable(initial_value=tf.zeros((1, 4, 4, self.config.code_size // 2)))
+        x = VaeLayers.first_cell_up(first_var, f_maps=self.config.code_size // 2, noise=noise, style=code)
 
         while x.shape[1] < self.config.img_dim:
-            x = VaeLayers.cell_up(x, f_maps=self.config.code_size//2, noise=noise, style=code)
-        x = layers.Dense(3, activation='relu')(x)
+            x = VaeLayers.cell_up(x, f_maps=self.config.code_size // 2, noise=noise, style=code)
+        x = layers.Dense(3)(x)
+        x = layers.ReLU()(x)
 
         return x
