@@ -15,9 +15,9 @@ class VaeLayers(object):
         """Pixelwise feature vector normalization"""
         with tf.variable_scope('normalize'):
             # return x * tf.rsqrt(tf.reduce_mean(tf.square(x), axis=1, keepdims=True) + epsilon, name='norm-factor')
-            mean, var = tf.nn.moments(x, axes=3)
-            std = tf.sqrt(var + epsilon)
-            x = (x - mean[:, :, :, None]) / (std[:, :, :, None] + epsilon)
+            mean, var = tf.nn.moments(x, axes=[1, 2])
+            rstd = tf.rsqrt(var + epsilon)
+            x = (x - mean[:, None, None, :]) * rstd[:, None, None, :]
             return x
 
     @staticmethod
@@ -25,33 +25,41 @@ class VaeLayers(object):
         """scaling noise bi-cubic to fit x and adding it"""
         with tf.variable_scope('Additive-Noise'):
             n = tf.image.resize_bicubic(noise, size=x.shape[1:3], name='resize-noise')
-            b = tf.Variable(initial_value=tf.ones(shape=(1, 1, 1, tf.shape(x)[-1])), name='b')
+            b = tf.Variable(initial_value=tf.zeros(shape=(1, 1, 1, x.shape[3])), name='b')
             return x + b * n
 
     @staticmethod
     def stylize(x, style):
         """stylize the feature maps AdaIN in paper"""
         with tf.variable_scope('Stylize'):
-            style_len = style.shape[1]
-            a_scale = tf.Variable(initial_value=tf.ones(shape=(1, style_len)), name='a-scale')
-            a_bias = tf.Variable(initial_value=tf.ones(shape=(1, style_len)), name='a-bias')
-            style_affine = style * a_scale + a_bias
-            scale = style_affine[:, None, None, :style_len // 2]
-            bias = style_affine[:, None, None, style_len // 2:]
-        return scale * x + bias
+            style_len = style.shape[1] // 2
+            style_scale, style_bias = tf.split(style, 2, axis=1)
+
+            as_scale = tf.Variable(initial_value=tf.zeros((1, style_len)), name='a-scale-ys')
+            as_bias = tf.Variable(initial_value=tf.ones((1, style_len)), name='a-bias-ys')
+
+            ab_scale = tf.Variable(initial_value=tf.zeros((1, style_len)), name='a-scale-yb')
+            ab_bias = tf.Variable(initial_value=tf.zeros((1, style_len)), name='a-bias-yb')
+
+            scale = tf.identity(style_scale * as_scale + as_bias, name='style-scale')
+            bias = tf.identity(style_bias * ab_scale + ab_bias, name='style-bias')
+
+        return scale[:, None, None, :] * x + bias[:, None, None, :]
 
     @staticmethod
     def conv3(x, f_maps, activation):
-        x = layers.Conv2D(filters=f_maps, kernel_size=3, padding='same', activation=activation)(x)
+        name = 'conv3'
+        x = layers.Conv2D(filters=f_maps, kernel_size=3, padding='same', activation=activation, name=name)(x)
         return x
 
     @staticmethod
     def conv3_stride2(x, f_maps, activation):
-        x = layers.Conv2D(filters=f_maps, kernel_size=3, padding='same', strides=2, activation=activation)(x)
+        name = 'conv3s2'
+        x = layers.Conv2D(filters=f_maps, kernel_size=3, padding='same', strides=2, activation=activation, name=name)(x)
         return x
 
     @staticmethod
-    def cell_up(x, f_maps, noise, style, activation='relu'):
+    def cell_up(x, f_maps, noise, style, activation=layers.LeakyReLU(0.2)):
         with tf.variable_scope('cell-up'):
             x = layers.UpSampling2D(2)(x)
             x = VaeLayers.conv3(x, f_maps, activation)
@@ -62,7 +70,7 @@ class VaeLayers(object):
         return x
 
     @staticmethod
-    def first_cell_up(var, f_maps, noise, style, activation='relu'):
+    def first_cell_up(var, f_maps, noise, style, activation=layers.LeakyReLU(0.2)):
         with tf.variable_scope('first-cell-up'):
             x = VaeLayers.additive_noise(var, noise)
             x = VaeLayers.normalize(x)
