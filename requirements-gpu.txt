@@ -1,0 +1,14 @@
+tensorflow-gpu
+sklearn
+git-lfs
+pylint
+pytest
+travis
+pandas
+dataclasses
+numpy
+matplotlib
+sklearn
+tqdm
+pandas
+fire
