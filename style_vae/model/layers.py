@@ -61,7 +61,7 @@ class VaeLayers(object):
     @staticmethod
     def cell_up(x, f_maps, noise, style, activation=layers.LeakyReLU(0.2)):
         with tf.variable_scope('cell-up'):
-            x = layers.UpSampling2D(2)(x)
+            x = tf.image.resize_bilinear(x, tf.shape(x)[1:3] * 2, align_corners=True)
             x = VaeLayers.conv3(x, f_maps, activation)
             x = VaeLayers.additive_noise(x, noise)
             x = VaeLayers.normalize(x)

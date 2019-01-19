@@ -15,7 +15,7 @@ import tensorflow as tf
 
 @dataclass
 class VaeConfig(object):
-    code_size: int = 200
+    code_size: int = 512
     img_dim: int = 32
     batch_size: int = 128
 

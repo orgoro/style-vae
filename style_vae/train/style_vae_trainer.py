@@ -57,7 +57,7 @@ class StyleVaeTrainer(VaeTrainer):
         img_ph = tf.placeholder(dtype=tf.float32, shape=(None, img_dim, img_dim, 3), name='img_ph')
         self._ph = StyleVaePh(img_ph)
 
-        code = self._model.encode(img_ph) # tf.Variable(np.ones((128, 200), dtype=np.float32))
+        code = self._model.encode(img_ph)  # tf.Variable(np.ones((128, 200), dtype=np.float32))
         # code_loss =
         recon_img = self._model.decode(code)
         recon_loss = tf.reduce_mean(tf.square(img_ph - recon_img), name='recon_loss')
@@ -85,18 +85,18 @@ class StyleVaeTrainer(VaeTrainer):
                     f'epoch {e:3}/{self._config.num_epochs:3}|{step:4}/{steps:4} | recon_loss: {loss:.4}')
                 avg_loss += loss
 
-                if step == 0:
-                    examples = [(img[i], res['recon_img'][i]) for i in range(self._config.batch_size)]
-                    pairs = [np.concatenate(example, axis=0) for example in examples[:10]]
-                    res = np.concatenate(pairs, axis=1)
-                    plt.figure(figsize=(10, 4))
-                    plt.imshow(res, aspect='equal')
-                    plt.axis('off'), plt.suptitle('train')
-                    plt.show()
+                # if step == 0:
+                #     examples = [(img[i], res['recon_img'][i]) for i in range(self._config.batch_size)]
+                #     pairs = [np.concatenate(example, axis=0) for example in examples[:10]]
+                #     res = np.concatenate(pairs, axis=1)
+                #     plt.figure(figsize=(10, 4))
+                #     plt.imshow(res, aspect='equal')
+                #     plt.axis('off'), plt.suptitle('train')
+                #     plt.show()
 
             avg_loss /= steps
             print(f'\nepoch {e:3}/{self._config.num_epochs:3} --> avg_loss: {avg_loss:.4}')
-            self.validate(dataset)
+            # self.validate(dataset)
 
     def validate(self, dataset):
         steps = dataset.val.shape[0] // self._config.batch_size
@@ -108,8 +108,7 @@ class StyleVaeTrainer(VaeTrainer):
             img = dataset.val[offset: offset + self._config.batch_size]
             res = self._sess.run(fetches, self._ph.get_feed(img))
             loss = res['recon_loss']
-            progress.set_description(
-                f'VAL {step:4}/{steps:4} | recon_loss: {loss:.4}')
+            progress.set_description(f'VAL {step:4}/{steps:4} | recon_loss: {loss:.4}')
             avg_loss += loss
 
             if step == 0:
@@ -119,18 +118,23 @@ class StyleVaeTrainer(VaeTrainer):
                 plt.figure(figsize=(10, 4))
                 plt.imshow(res, aspect="equal")
                 plt.axis('off'), plt.suptitle('val')
-                plt.show()
+                plt.savefig(path.join(OUT, 'recon.png'))
 
         avg_loss /= steps
         print(f'\nVAL avg_loss: {avg_loss:.4}')
 
-
-
     def save(self, save_path=OUT):
+        print('save')
         self._saver.save(self._sess, path.join(save_path, 'model.ckpt'))
         # tf.saved_model.simple_save(self._sess, path.join(save_path, 'model_dir'),
         #                            inputs={'img': self._ph.img_ph},
         #                            outputs={'recon_img': self._stub.recon_img})
 
     def load(self, save_path=OUT):
-        self._saver.restore(self._sess, path.join(save_path, 'model.ckpt'))
+        ckpt = tf.train.latest_checkpoint(save_path)
+        if ckpt:
+            print('restore')
+            self._sess.run(tf.global_variables_initializer())
+            self._saver.restore(self._sess, ckpt)
+        else:
+            print('restore failed!')

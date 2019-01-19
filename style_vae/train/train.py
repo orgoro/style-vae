@@ -9,6 +9,7 @@ import tensorflow as tf
 # different category:
 from style_vae.model import StyleVae, VaeConfig
 from style_vae.data import Dataset
+from style_vae.output import OUT
 
 # same category:
 from style_vae.train.style_vae_trainer import StyleVaeTrainer
@@ -19,9 +20,11 @@ def train():
     trainer = _build_trainer()
     dataset = Dataset.get_cifar10()
 
+    save_path = OUT
     # trainer.load(save_path)
     trainer.train(dataset)
-    # trainer.save(save_path)
+    trainer.validate(dataset)
+    trainer.save(save_path)
 
 
 def _build_trainer() -> StyleVaeTrainer:
