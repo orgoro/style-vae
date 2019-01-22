@@ -15,9 +15,9 @@ import tensorflow as tf
 
 @dataclass
 class VaeConfig(object):
-    code_size: int = 512
+    code_size: int = 256
     img_dim: int = 32
-    batch_size: int = 128
+    batch_size: int = 64
 
     def __str__(self):
         res = 'VaeConfig:\n'

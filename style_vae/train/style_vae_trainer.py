@@ -5,6 +5,7 @@ from __future__ import division
 # 3rd party:
 from matplotlib import pyplot as plt
 import tensorflow as tf
+from tensorflow.keras import losses as loss
 from dataclasses import dataclass
 from tqdm import tqdm
 from os import path
@@ -60,7 +61,8 @@ class StyleVaeTrainer(VaeTrainer):
         code = self._model.encode(img_ph)  # tf.Variable(np.ones((128, 200), dtype=np.float32))
         # code_loss =
         recon_img = self._model.decode(code)
-        recon_loss = tf.reduce_mean(tf.square(img_ph - recon_img), name='recon_loss')
+        # l2_loss = tf.reduce_mean(tf.square(img_ph - recon_img), name='recon_loss')
+        recon_loss = loss.binary_crossentropy(img_ph, recon_img)
 
         optimizer = tf.train.AdamOptimizer(self._config.lr)
         opt_step = optimizer.minimize(recon_loss)
@@ -85,14 +87,14 @@ class StyleVaeTrainer(VaeTrainer):
                     f'epoch {e:3}/{self._config.num_epochs:3}|{step:4}/{steps:4} | recon_loss: {loss:.4}')
                 avg_loss += loss
 
-                # if step == 0:
-                #     examples = [(img[i], res['recon_img'][i]) for i in range(self._config.batch_size)]
-                #     pairs = [np.concatenate(example, axis=0) for example in examples[:10]]
-                #     res = np.concatenate(pairs, axis=1)
-                #     plt.figure(figsize=(10, 4))
-                #     plt.imshow(res, aspect='equal')
-                #     plt.axis('off'), plt.suptitle('train')
-                #     plt.show()
+                if step == len(progress) - 1:
+                    examples = [(img[i], res['recon_img'][i]) for i in range(self._config.batch_size)]
+                    pairs = [np.concatenate(example, axis=0) for example in examples[:10]]
+                    res = np.concatenate(pairs, axis=1)
+                    plt.figure(figsize=(10, 4))
+                    plt.imshow(res, aspect='equal')
+                    plt.axis('off'), plt.suptitle('train')
+                    plt.savefig(path.join(OUT, f'train-recon-loss-{avg_loss / steps:1.4}.png'))
 
             avg_loss /= steps
             print(f'\nepoch {e:3}/{self._config.num_epochs:3} --> avg_loss: {avg_loss:.4}')
@@ -111,14 +113,14 @@ class StyleVaeTrainer(VaeTrainer):
             progress.set_description(f'VAL {step:4}/{steps:4} | recon_loss: {loss:.4}')
             avg_loss += loss
 
-            if step == 0:
+            if step == len(progress) - 1:
                 examples = [(img[i], res['recon_img'][i]) for i in range(self._config.batch_size)]
                 pairs = [np.concatenate(example, axis=0) for example in examples[:10]]
                 res = np.concatenate(pairs, axis=1)
                 plt.figure(figsize=(10, 4))
                 plt.imshow(res, aspect="equal")
                 plt.axis('off'), plt.suptitle('val')
-                plt.savefig(path.join(OUT, 'recon.png'))
+                plt.savefig(path.join(OUT, f'val-recon-loss-{avg_loss / steps:1.4}.png'))
 
         avg_loss /= steps
         print(f'\nVAL avg_loss: {avg_loss:.4}')
