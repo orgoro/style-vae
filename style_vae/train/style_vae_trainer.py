@@ -44,6 +44,7 @@ class StyleVaeStub:
 
 
 class StyleVaeTrainer(VaeTrainer):
+    EPOCH = 0
 
     def __init__(self, model: Vae, config: VaeTrainerConfig, sess: tf.Session):
         super(StyleVaeTrainer, self).__init__(model, config, sess)
@@ -62,68 +63,65 @@ class StyleVaeTrainer(VaeTrainer):
         # code_loss =
         recon_img = self._model.decode(code)
         # l2_loss = tf.reduce_mean(tf.square(img_ph - recon_img), name='recon_loss')
-        recon_loss = loss.binary_crossentropy(img_ph, recon_img)
+        recon_loss = tf.reduce_mean(loss.binary_crossentropy(img_ph, recon_img))
 
         optimizer = tf.train.AdamOptimizer(self._config.lr)
         opt_step = optimizer.minimize(recon_loss)
         self._stub = StyleVaeStub(code, recon_img, recon_loss, opt_step)
 
+        # summary
+        train_summary_recon_loss = tf.summary.scalar('train/recon_loss', recon_loss)
+        train_summary_recon = tf.summary.image('train/recon', recon_img)
+        train_summary_src = tf.summary.image('train/src', img_ph)
+        self._train_summary = tf.summary.merge([train_summary_recon_loss, train_summary_recon, train_summary_src])
+
+        val_summary_recon_loss = tf.summary.scalar('val/recon_loss', recon_loss)
+        val_summary_recon = tf.summary.scalar('val/recon', recon_img)
+        val_summary_src = tf.summary.image('train/src', img_ph)
+        self._val_summary = tf.summary.merge([val_summary_recon_loss, val_summary_recon, val_summary_src])
+
     def train(self, dataset):
         init_op = tf.global_variables_initializer()
         self._sess.run(init_op)
+        phase = 'train'
 
-        steps = 10  # dataset.train.shape[0] // self._config.batch_size
         fetches = self._stub.get_train_fetch()
         for e in range(self._config.num_epochs):
-            # self.save()
-            progress = tqdm(range(steps))
-            avg_loss = 0
-            for step in progress:
-                offset = step * self._config.batch_size
-                img = dataset.train[offset: offset + self._config.batch_size]
-                res = self._sess.run(fetches, self._ph.get_feed(img))
-                loss = res['recon_loss']
-                progress.set_description(
-                    f'epoch {e:3}/{self._config.num_epochs:3}|{step:4}/{steps:4} | recon_loss: {loss:.4}')
-                avg_loss += loss
+            self.EPOCH = e
+            self._run_epoch(dataset.train, fetches, phase)
+            self.validate(dataset)
 
-                if step == len(progress) - 1:
-                    examples = [(img[i], res['recon_img'][i]) for i in range(self._config.batch_size)]
-                    pairs = [np.concatenate(example, axis=0) for example in examples[:10]]
-                    res = np.concatenate(pairs, axis=1)
-                    plt.figure(figsize=(10, 4))
-                    plt.imshow(res, aspect='equal')
-                    plt.axis('off'), plt.suptitle('train')
-                    plt.savefig(path.join(OUT, f'train-recon-loss-{avg_loss / steps:1.4}.png'))
-
-            avg_loss /= steps
-            print(f'\nepoch {e:3}/{self._config.num_epochs:3} --> avg_loss: {avg_loss:.4}')
-            # self.validate(dataset)
-
-    def validate(self, dataset):
-        steps = dataset.val.shape[0] // self._config.batch_size
+    def _run_epoch(self, images, fetches, phase):
+        steps = images.shape[0] // self._config.batch_size
         progress = tqdm(range(steps))
-        fetches = self._stub.get_validate_fetch()
         avg_loss = 0
         for step in progress:
             offset = step * self._config.batch_size
-            img = dataset.val[offset: offset + self._config.batch_size]
+            img = images[offset: offset + self._config.batch_size]
             res = self._sess.run(fetches, self._ph.get_feed(img))
-            loss = res['recon_loss']
-            progress.set_description(f'VAL {step:4}/{steps:4} | recon_loss: {loss:.4}')
-            avg_loss += loss
+            cur_loss = res['recon_loss']
+            progress.set_description(f'{phase} epoch {self.EPOCH:3}/{self._config.num_epochs:3}|{step:4}/{steps:4}'
+                                     f' | recon_loss: {cur_loss:.4}')
+            avg_loss += cur_loss
 
             if step == len(progress) - 1:
+                summary = self._train_summary if phase == 'train' else self._val_summary
+                _ = self._sess.run(summary, self._ph.get_feed(img))
                 examples = [(img[i], res['recon_img'][i]) for i in range(self._config.batch_size)]
                 pairs = [np.concatenate(example, axis=0) for example in examples[:10]]
                 res = np.concatenate(pairs, axis=1)
                 plt.figure(figsize=(10, 4))
-                plt.imshow(res, aspect="equal")
-                plt.axis('off'), plt.suptitle('val')
-                plt.savefig(path.join(OUT, f'val-recon-loss-{avg_loss / steps:1.4}.png'))
+                plt.imshow(res, aspect='equal')
+                plt.axis('off'), plt.suptitle(f'{phase}-e{self.EPOCH}-l{avg_loss / steps}')
+                plt.savefig(path.join(OUT, f'{phase}-recon.png'))
 
         avg_loss /= steps
-        print(f'\nVAL avg_loss: {avg_loss:.4}')
+        print(f'\n{phase} epoch {self.EPOCH:3}/{self._config.num_epochs:3} --> avg_loss: {avg_loss:.4}')
+
+    def validate(self, dataset):
+        phase = 'val'
+        fetches = self._stub.get_validate_fetch()
+        self._run_epoch(dataset.val, fetches, phase)
 
     def save(self, save_path=OUT):
         print('save')

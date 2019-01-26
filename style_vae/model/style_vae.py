@@ -33,6 +33,6 @@ class StyleVae(Vae):
 
             while x.shape[1] < self.config.img_dim:
                 x = VaeLayers.cell_up(x, f_maps=self.config.code_size // 2, noise=noise, style=code)
-            x = layers.Dense(3)(x)
+            x = VaeLayers.to_rgb(x)
 
         return x

@@ -17,9 +17,9 @@ class VaeTrainerConfig:
     name: str = 'default-vae'
     reload_model: bool = True
     save_model: bool = True
-    batch_size: int = 128
-    num_epochs: int = 15000
-    lr: float = 1e-6
+    batch_size: int = 64
+    num_epochs: int = 500
+    lr: float = 1e-5
 
     def __str__(self):
         res = 'VaeTrainerConfig:\n'

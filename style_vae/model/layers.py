@@ -70,6 +70,12 @@ class VaeLayers(object):
         return x
 
     @staticmethod
+    def to_rgb(x, activation=layers.LeakyReLU(0.2)):
+        name = 'to_rgb'
+        x = layers.Conv2D(filters=3, kernel_size=3, padding='same', strides=1, activation=activation, name=name)(x)
+        return x
+
+    @staticmethod
     def first_cell_up(var, f_maps, noise, style, activation=layers.LeakyReLU(0.2)):
         with tf.variable_scope('first-cell-up'):
             x = VaeLayers.additive_noise(var, noise)
