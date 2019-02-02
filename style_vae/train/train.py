@@ -18,10 +18,10 @@ from style_vae.train.vae_trainer import VaeTrainerConfig
 
 def train():
     trainer = _build_trainer()
-    dataset = Dataset.get_cifar10()
+    dataset = Dataset.get_mnist64()
 
     save_path = OUT
-    # trainer.load(save_path)
+    trainer.load(save_path)
     trainer.train(dataset)
     trainer.validate(dataset)
     trainer.save(save_path)
@@ -37,6 +37,8 @@ def _build_trainer() -> StyleVaeTrainer:
 
     sess = tf.Session()
     trainer = StyleVaeTrainer(model, trainer_config, sess)
+    init_op = tf.global_variables_initializer()
+    sess.run(init_op)
     return trainer
 
 

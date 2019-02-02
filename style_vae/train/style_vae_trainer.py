@@ -50,13 +50,15 @@ class StyleVaeTrainer(VaeTrainer):
         super(StyleVaeTrainer, self).__init__(model, config, sess)
         self._ph = None  # type: StyleVaePh
         self._stub = None  # type: StyleVaeStub
+        self._global_step = tf.train.create_global_step()
         self._build_graph()
         self._saver = tf.train.Saver()
         self._graph_writer = tf.summary.FileWriter(OUT, graph=self._sess.graph)
+        self._train_summary, self._val_summary = self._add_summary()
 
     def _build_graph(self):
         img_dim = self._model.config.img_dim
-        img_ph = tf.placeholder(dtype=tf.float32, shape=(None, img_dim, img_dim, 3), name='img_ph')
+        img_ph = tf.placeholder(dtype=tf.float32, shape=(None, img_dim, img_dim, 1), name='img_ph')
         self._ph = StyleVaePh(img_ph)
 
         code = self._model.encode(img_ph)  # tf.Variable(np.ones((128, 200), dtype=np.float32))
@@ -66,23 +68,23 @@ class StyleVaeTrainer(VaeTrainer):
         recon_loss = tf.reduce_mean(loss.binary_crossentropy(img_ph, recon_img))
 
         optimizer = tf.train.AdamOptimizer(self._config.lr)
-        opt_step = optimizer.minimize(recon_loss)
+        opt_step = optimizer.minimize(recon_loss, global_step=self._global_step)
         self._stub = StyleVaeStub(code, recon_img, recon_loss, opt_step)
 
-        # summary
-        train_summary_recon_loss = tf.summary.scalar('train/recon_loss', recon_loss)
-        train_summary_recon = tf.summary.image('train/recon', recon_img)
-        train_summary_src = tf.summary.image('train/src', img_ph)
-        self._train_summary = tf.summary.merge([train_summary_recon_loss, train_summary_recon, train_summary_src])
+    def _add_summary(self):
+        train_summary_recon_loss = tf.summary.scalar('train/recon_loss', self._stub.recon_loss)
+        train_summary_recon = tf.summary.image('train/recon', self._stub.recon_img)
+        train_summary_src = tf.summary.image('train/src', self._ph.img_ph)
+        train_summary = tf.summary.merge([train_summary_recon_loss, train_summary_recon, train_summary_src])
 
-        val_summary_recon_loss = tf.summary.scalar('val/recon_loss', recon_loss)
-        val_summary_recon = tf.summary.scalar('val/recon', recon_img)
-        val_summary_src = tf.summary.image('train/src', img_ph)
-        self._val_summary = tf.summary.merge([val_summary_recon_loss, val_summary_recon, val_summary_src])
+        val_summary_recon_loss = tf.summary.scalar('val/recon_loss', self._stub.recon_loss)
+        val_summary_recon = tf.summary.image('val/recon', self._stub.recon_img)
+        val_summary_src = tf.summary.image('val/src', self._ph.img_ph)
+        val_summary = tf.summary.merge([val_summary_recon_loss, val_summary_recon, val_summary_src])
+
+        return train_summary, val_summary
 
     def train(self, dataset):
-        init_op = tf.global_variables_initializer()
-        self._sess.run(init_op)
         phase = 'train'
 
         fetches = self._stub.get_train_fetch()
@@ -105,15 +107,16 @@ class StyleVaeTrainer(VaeTrainer):
             avg_loss += cur_loss
 
             if step == len(progress) - 1:
-                summary = self._train_summary if phase == 'train' else self._val_summary
-                _ = self._sess.run(summary, self._ph.get_feed(img))
-                examples = [(img[i], res['recon_img'][i]) for i in range(self._config.batch_size)]
-                pairs = [np.concatenate(example, axis=0) for example in examples[:10]]
-                res = np.concatenate(pairs, axis=1)
-                plt.figure(figsize=(10, 4))
-                plt.imshow(res, aspect='equal')
-                plt.axis('off'), plt.suptitle(f'{phase}-e{self.EPOCH}-l{avg_loss / steps}')
-                plt.savefig(path.join(OUT, f'{phase}-recon.png'))
+                summary_op = self._train_summary if phase == 'train' else self._val_summary
+                summary, global_step = self._sess.run([summary_op, self._global_step], self._ph.get_feed(img))
+                self._graph_writer.add_summary(summary, global_step=global_step)
+                # examples = [(img[i], res['recon_img'][i]) for i in range(self._config.batch_size)]
+                # pairs = [np.concatenate(example, axis=0) for example in examples[:10]]
+                # res = np.concatenate(pairs, axis=1)
+                # fig = plt.figure(figsize=(10, 4))
+                # plt.imshow(res, aspect='equal')
+                # plt.axis('off'), plt.suptitle(f'{phase}-e{self.EPOCH}-l{avg_loss / steps}')
+                # plt.savefig(path.join(OUT, f'{phase}-recon.png'))
 
         avg_loss /= steps
         print(f'\n{phase} epoch {self.EPOCH:3}/{self._config.num_epochs:3} --> avg_loss: {avg_loss:.4}')
@@ -125,7 +128,8 @@ class StyleVaeTrainer(VaeTrainer):
 
     def save(self, save_path=OUT):
         print('save')
-        self._saver.save(self._sess, path.join(save_path, 'model.ckpt'))
+        global_step = self._global_step.eval(session=self._sess)
+        self._saver.save(self._sess, path.join(save_path, 'model.ckpt'), global_step=global_step)
         # tf.saved_model.simple_save(self._sess, path.join(save_path, 'model_dir'),
         #                            inputs={'img': self._ph.img_ph},
         #                            outputs={'recon_img': self._stub.recon_img})
@@ -134,7 +138,6 @@ class StyleVaeTrainer(VaeTrainer):
         ckpt = tf.train.latest_checkpoint(save_path)
         if ckpt:
             print('restore')
-            self._sess.run(tf.global_variables_initializer())
             self._saver.restore(self._sess, ckpt)
         else:
             print('restore failed!')
