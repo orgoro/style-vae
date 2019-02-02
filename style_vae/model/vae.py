@@ -16,8 +16,9 @@ import tensorflow as tf
 @dataclass
 class VaeConfig(object):
     code_size: int = 256
-    img_dim: int = 32
+    img_dim: int = 64
     batch_size: int = 64
+    num_channels: int = 1
 
     def __str__(self):
         res = 'VaeConfig:\n'
