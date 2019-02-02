@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import cv2
 
+
 @dataclass
 class Dataset:
     name: str
@@ -43,14 +44,12 @@ class Dataset:
         test_64 = np.array([cv2.resize(x_test[i], (64, 64)) for i in range(test_size)])
         num_val = x_train.shape[0] // 10
         return Dataset('mnist64',
-                       np.float32(train_64[num_val:] / 255.),
-                       np.float32(train_64[:num_val] / 255.),
-                       np.float32(test_64 / 255.))
+                       np.float32(train_64[num_val:, :, :, None] / 255.),
+                       np.float32(train_64[:num_val, :, :, None] / 255.),
+                       np.float32(test_64[:, :, :, None] / 255.))
 
 
 if __name__ == '__main__':
-    mnist64 = Dataset.get_mnist64()
-    print(mnist64)
-    from matplotlib import pyplot as plt
+    mnist_64 = Dataset.get_mnist64()
+    print(mnist_64)
 
-    plt.figure(), plt.gray(), plt.imshow(np.uint8(mnist64.train[0,:,:] * 255)), plt.colormaps('gray'),plt.show()
