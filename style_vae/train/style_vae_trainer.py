@@ -9,7 +9,6 @@ from tensorflow.keras import losses as loss
 from dataclasses import dataclass
 from tqdm import tqdm
 from os import path
-import numpy as np
 
 # different category:
 from style_vae.model import Vae
@@ -110,13 +109,6 @@ class StyleVaeTrainer(VaeTrainer):
                 summary_op = self._train_summary if phase == 'train' else self._val_summary
                 summary, global_step = self._sess.run([summary_op, self._global_step], self._ph.get_feed(img))
                 self._graph_writer.add_summary(summary, global_step=global_step)
-                # examples = [(img[i], res['recon_img'][i]) for i in range(self._config.batch_size)]
-                # pairs = [np.concatenate(example, axis=0) for example in examples[:10]]
-                # res = np.concatenate(pairs, axis=1)
-                # fig = plt.figure(figsize=(10, 4))
-                # plt.imshow(res, aspect='equal')
-                # plt.axis('off'), plt.suptitle(f'{phase}-e{self.EPOCH}-l{avg_loss / steps}')
-                # plt.savefig(path.join(OUT, f'{phase}-recon.png'))
 
         avg_loss /= steps
         print(f'\n{phase} epoch {self.EPOCH:3}/{self._config.num_epochs:3} --> avg_loss: {avg_loss:.4}')
@@ -129,10 +121,10 @@ class StyleVaeTrainer(VaeTrainer):
     def save(self, save_path=OUT):
         print('save')
         global_step = self._global_step.eval(session=self._sess)
-        self._saver.save(self._sess, path.join(save_path, 'model.ckpt'), global_step=global_step)
-        # tf.saved_model.simple_save(self._sess, path.join(save_path, 'model_dir'),
-        #                            inputs={'img': self._ph.img_ph},
-        #                            outputs={'recon_img': self._stub.recon_img})
+        self._saver.save(self._sess, path.join(save_path, 'model.ckpt'),
+                         global_step=global_step,
+                         latest_filename='latest.ckpt')
+
 
     def load(self, save_path=OUT):
         ckpt = tf.train.latest_checkpoint(save_path)
