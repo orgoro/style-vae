@@ -49,25 +49,21 @@ class VaeLayers(object):
         return x * (style_scale[:, None, None, :] + 1) + style_bias[:, None, None, :]
 
     @staticmethod
-    def conv3(x, f_maps, activation, blur=False):
+    def conv3(x, f_maps, activation, blur=False, add_noise=True):
         name = 'conv3'
-        if not blur:
-            x = layers.Conv2D(filters=f_maps,
-                              kernel_size=3,
-                              padding='same',
-                              activation=activation,
-                              name=name)(x)
-        else:
-            with tf.variable_scope(name+'_blur'):
-                x = layers.Conv2D(filters=f_maps,
-                                  kernel_size=3,
-                                  padding='same',
-                                  activation=None,
-                                  use_bias=False,
-                                  name=name)(x)
-                x = VaeLayers.blur_2d(x)
-                x = VaeLayers.add_bias(x)
-                x = activation(x)
+        x = layers.Conv2D(filters=f_maps,
+                          kernel_size=3,
+                          padding='same',
+                          activation=activation,
+                          name=name)(x)
+        if blur:
+            x = VaeLayers.blur_2d(x)
+
+        if add_noise:
+            x = VaeLayers.additive_noise(x)
+
+        x = VaeLayers.add_bias(x)
+        x = activation(x)
         return x
 
     @staticmethod
@@ -87,10 +83,11 @@ class VaeLayers(object):
             size = [2 * int(x.shape[1]), 2 * int(x.shape[2])]
             x = tf.image.resize_nearest_neighbor(x, size, align_corners=True)
             x = VaeLayers.conv3(x, f_maps, activation, blur=True)
-            x = VaeLayers.additive_noise(x)
             x = VaeLayers.normalize(x)
             x = VaeLayers.stylize(x, style)
             x = VaeLayers.conv3(x, f_maps, activation)
+            x = VaeLayers.normalize(x)
+            x = VaeLayers.stylize(x, style)
         return x
 
     @staticmethod
@@ -120,13 +117,12 @@ class VaeLayers(object):
     @staticmethod
     def first_cell_up(var, style, f_maps, activation=layers.LeakyReLU(0.2)):
         with tf.variable_scope('first-cell-up'):
-            x = VaeLayers.add_bias(var)
+            x = VaeLayers.additive_noise(var)
+            x = VaeLayers.add_bias(x)
             x = activation(x)
-            x = VaeLayers.additive_noise(x)
             x = VaeLayers.normalize(x)
             x = VaeLayers.stylize(x, style)
             x = VaeLayers.conv3(x, f_maps, activation)
-            x = VaeLayers.additive_noise(x)
             x = VaeLayers.normalize(x)
             x = VaeLayers.stylize(x, style)
         return x
@@ -134,5 +130,5 @@ class VaeLayers(object):
     @staticmethod
     def cell_down(x, f_maps, activation=layers.LeakyReLU(0.2)):
         x = VaeLayers.conv3(x, f_maps, activation)
-        x = VaeLayers.conv3_stride2(x, f_maps-1, activation)
+        x = VaeLayers.conv3_stride2(x, f_maps - 1, activation)
         return x
