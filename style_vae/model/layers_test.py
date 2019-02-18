@@ -6,6 +6,7 @@ from __future__ import division
 import tensorflow as tf
 import numpy as np
 import unittest
+from scipy import signal
 
 # tested file:
 from style_vae.model.layers import VaeLayers
@@ -28,12 +29,11 @@ class LayersTester(unittest.TestCase):
         size = 8
         batch = 10
         x = tf.ones((batch, size, size, 3))
-        noise = tf.ones((batch, size * 2, size * 2, 1))
         style = tf.ones((batch, 4))
 
         # ACT:
         f_maps = 2
-        scaled_up = VaeLayers.cell_up(x, f_maps, noise, style)
+        scaled_up = VaeLayers.cell_up(x, f_maps, style)
         self.sess.run(tf.global_variables_initializer())
         result = self.sess.run(scaled_up)
 
@@ -60,7 +60,7 @@ class LayersTester(unittest.TestCase):
         size = 8
         batch = 10
         f_maps = 15
-        x = tf.random_normal((batch, size, size, f_maps), mean=10, stddev=5)
+        x = tf.random_normal((batch, size, size, f_maps), mean=10, stddev=5, dtype=tf.float32)
 
         # ACT:
         normed = VaeLayers.normalize(x)
@@ -68,9 +68,31 @@ class LayersTester(unittest.TestCase):
         result = self.sess.run(normed)
 
         # ASSERT:
-        np.testing.assert_almost_equal(np.mean(result, axis=3), np.zeros((batch, size, size)), 3, 'zero mean')
-        np.testing.assert_almost_equal(np.var(result, axis=3), np.ones((batch, size, size)), 3, 'unit var')
+        np.testing.assert_almost_equal(np.mean(result, axis=(1, 2)), np.zeros((batch, f_maps)), 3, 'zero mean')
+        np.testing.assert_almost_equal(np.var(result, axis=(1, 2)), np.ones((batch, f_maps)), 3, 'unit var')
         self.assertEqual(result.shape, (batch, size, size, f_maps), 'shape must not change')
+
+    def test_when_blur_then_like_scipy(self):
+        # ARRANGE:
+        size = 8
+        batch = 10
+        f_maps = 15
+        source = np.random.normal(size=(batch, size, size, f_maps))
+        x = tf.constant(source, dtype=tf.float32)
+
+        # ACT:
+        blurred = VaeLayers.blur_2d(x)
+        self.sess.run(tf.global_variables_initializer())
+        result = self.sess.run(blurred)
+
+        # ASSERT:
+        kernel = np.array([[1., 2., 1.], [2., 4., 2.], [1., 2., 1.]])
+        kernel /= np.sum(kernel)
+
+        for f in range(f_maps):
+            for b in range(batch):
+                blurred_scipy = signal.convolve2d(source[b, :, :, f], kernel, mode='same')
+                np.testing.assert_almost_equal(result[b, :, :, f], blurred_scipy, decimal=3)
 
 
 if __name__ == '__main__':

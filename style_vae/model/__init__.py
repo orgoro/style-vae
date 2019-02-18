@@ -3,5 +3,4 @@ from __future__ import absolute_import
 from __future__ import division
 
 
-from .vae import VaeConfig, Vae
-from .style_vae import StyleVae
+from .style_vae import StyleVae, Config

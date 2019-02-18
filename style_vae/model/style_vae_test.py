@@ -7,8 +7,7 @@ import tensorflow as tf
 import unittest
 
 # tested file:
-from style_vae.model.vae import VaeConfig
-from style_vae.model.style_vae import StyleVae
+from style_vae.model.style_vae import StyleVae, Config
 
 
 class StyleVaeTester(unittest.TestCase):
@@ -19,7 +18,7 @@ class StyleVaeTester(unittest.TestCase):
     def setUpClass(cls):
         tf.reset_default_graph()
         cls.sess = tf.Session()
-        cls.style_vae = StyleVae(VaeConfig(code_size=10, img_dim=256, batch_size=3))
+        cls.style_vae = StyleVae(Config(code_size=10, img_dim=256, batch_size=3, num_channels=3))
 
     @classmethod
     def tearDownClass(cls):

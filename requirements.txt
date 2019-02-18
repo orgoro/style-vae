@@ -8,7 +8,7 @@ pandas
 dataclasses
 numpy
 matplotlib
-sklearn
 tqdm
 pandas
 fire
+opencv-python
