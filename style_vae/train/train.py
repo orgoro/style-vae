@@ -7,14 +7,13 @@ import fire
 import tensorflow as tf
 
 # different category:
-from style_vae.model import StyleVae, VaeConfig
+from style_vae.model import StyleVae, Config
 from style_vae.data import Dataset
 from style_vae.output import OUT
 
 # same category:
 from style_vae.train.style_vae_trainer import StyleVaeTrainer
-from style_vae.train.vae_trainer import VaeTrainerConfig
-
+from style_vae.train.vae_trainer_config import VaeTrainerConfig
 
 def train():
     trainer = _build_trainer()
@@ -28,7 +27,7 @@ def train():
 
 
 def _build_trainer() -> StyleVaeTrainer:
-    model_config = VaeConfig()
+    model_config = Config()
     print(model_config)
 
     model = StyleVae(model_config)

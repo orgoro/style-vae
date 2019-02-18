@@ -15,7 +15,7 @@ from dataclasses import dataclass
 @dataclass
 class VaeTrainerConfig:
     name: str = 'default-vae'
-    reload_model: bool = True
+    reload_model: bool = False
     save_model: bool = True
     batch_size: int = 64
     num_epochs: int = 500

@@ -11,12 +11,11 @@ from tqdm import tqdm
 from os import path
 
 # different category:
-from style_vae.model import Vae
 from style_vae.output import OUT
+from style_vae.model import StyleVae
 
 # same category:
 from style_vae.train.vae_trainer_config import VaeTrainerConfig
-from style_vae.train.vae_trainer import VaeTrainer
 
 
 @dataclass
@@ -42,11 +41,13 @@ class StyleVaeStub:
         return {**{'opt_step': self.opt_step}, **self.get_validate_fetch()}
 
 
-class StyleVaeTrainer(VaeTrainer):
+class StyleVaeTrainer(object):
     EPOCH = 0
 
-    def __init__(self, model: Vae, config: VaeTrainerConfig, sess: tf.Session):
-        super(StyleVaeTrainer, self).__init__(model, config, sess)
+    def __init__(self, model: StyleVae, config: VaeTrainerConfig, sess: tf.Session):
+        self._model = model
+        self._config = config
+        self._sess = sess
         self._ph = None  # type: StyleVaePh
         self._stub = None  # type: StyleVaeStub
         self._global_step = tf.train.create_global_step()
@@ -124,7 +125,6 @@ class StyleVaeTrainer(VaeTrainer):
         self._saver.save(self._sess, path.join(save_path, 'model.ckpt'),
                          global_step=global_step,
                          latest_filename='latest.ckpt')
-
 
     def load(self, save_path=OUT):
         ckpt = tf.train.latest_checkpoint(save_path)
