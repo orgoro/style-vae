@@ -58,15 +58,16 @@ class VaeLayers(object):
                               activation=activation,
                               name=name)(x)
         else:
-            x = layers.Conv2D(filters=f_maps,
-                              kernel_size=3,
-                              padding='same',
-                              activation=None,
-                              use_bias=False,
-                              name=name)(x)
-            x = VaeLayers.blur_2d(x)
-            x = VaeLayers.add_bias(x)
-            x = activation(x)
+            with tf.variable_scope(name+'_blur'):
+                x = layers.Conv2D(filters=f_maps,
+                                  kernel_size=3,
+                                  padding='same',
+                                  activation=None,
+                                  use_bias=False,
+                                  name=name)(x)
+                x = VaeLayers.blur_2d(x)
+                x = VaeLayers.add_bias(x)
+                x = activation(x)
         return x
 
     @staticmethod

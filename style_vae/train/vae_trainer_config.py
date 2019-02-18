@@ -19,7 +19,7 @@ class VaeTrainerConfig:
     save_model: bool = True
     batch_size: int = 64
     num_epochs: int = 500
-    lr: float = 1e-5
+    lr: float = 1e-3
 
     def __str__(self):
         res = 'VaeTrainerConfig:\n'
