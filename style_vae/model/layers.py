@@ -132,6 +132,7 @@ class VaeLayers(object):
         return x
 
     @staticmethod
-    def cell_down(x, f_maps, activation='relu'):
-        x = VaeLayers.conv3_stride2(x, f_maps, activation)
+    def cell_down(x, f_maps, activation=layers.LeakyReLU(0.2)):
+        x = VaeLayers.conv3(x, f_maps, activation)
+        x = VaeLayers.conv3_stride2(x, f_maps-1, activation)
         return x

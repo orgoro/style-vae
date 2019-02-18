@@ -46,9 +46,8 @@ class StyleVae:
             x = image
             log2_dim = int(np.log2(self.config.img_dim))
 
-            for res in np.arange(log2_dim, 3, -1):
+            for res in np.arange(log2_dim, 2, -1):
                 x = VaeLayers.cell_down(x, self.nf(res-1))
-                res -= 1
 
             x = layers.Flatten()(x)
             x = layers.Dense(self.config.code_size)(x)

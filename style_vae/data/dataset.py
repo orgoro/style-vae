@@ -38,10 +38,14 @@ class Dataset:
     def get_mnist64(cls):
         mnist = datasets.mnist.load_data()
         (x_train, _), (x_test, _) = mnist
+
         train_size = x_train.shape[0]
         train_64 = np.array([cv2.resize(x_train[i], (64, 64)) for i in range(train_size)])
+        np.random.shuffle(train_64)
+
         test_size = x_test.shape[0]
         test_64 = np.array([cv2.resize(x_test[i], (64, 64)) for i in range(test_size)])
+
         num_val = x_train.shape[0] // 10
         return Dataset('mnist64',
                        np.float32(train_64[num_val:, :, :, None] / 255.),
