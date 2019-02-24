@@ -127,9 +127,17 @@ class StyleVaeTrainer(object):
                          latest_filename='latest.ckpt')
 
     def load(self, save_path=OUT):
-        ckpt = tf.train.latest_checkpoint(save_path)
+        ckpt = tf.train.latest_checkpoint(save_path, 'latest.ckpt')
         if ckpt:
             print('restore')
             self._saver.restore(self._sess, ckpt)
         else:
             print('restore failed!')
+
+    def test(self, dataset):
+        img = dataset.test[0:10]
+        feed_dict = self._ph.get_feed(img)
+        fetch = self._stub.get_validate_fetch()
+        result = self._sess.run(fetch, feed_dict)
+        return result
+

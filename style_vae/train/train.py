@@ -5,6 +5,8 @@ from __future__ import division
 # 3rd party:
 import fire
 import tensorflow as tf
+from matplotlib import pyplot as plt
+import numpy as np
 
 # different category:
 from style_vae.model import StyleVae, Config
@@ -15,6 +17,7 @@ from style_vae.output import OUT
 from style_vae.train.style_vae_trainer import StyleVaeTrainer
 from style_vae.train.vae_trainer_config import VaeTrainerConfig
 
+
 def train():
     trainer = _build_trainer()
     dataset = Dataset.get_mnist64()
@@ -24,6 +27,20 @@ def train():
     trainer.train(dataset)
     trainer.validate(dataset)
     trainer.save(save_path)
+
+
+def test():
+    trainer = _build_trainer()
+    dataset = Dataset.get_mnist64()
+
+    save_path = OUT
+    trainer.load(save_path)
+    result = trainer.test(dataset)
+    for i in range(10):
+        plt.figure()
+        plt.imshow(np.uint8(255*np.clip(result['recon_img'][i,:,:,0], 0, 1)))
+        plt.gray()
+    plt.show()
 
 
 def _build_trainer() -> StyleVaeTrainer:
@@ -42,4 +59,4 @@ def _build_trainer() -> StyleVaeTrainer:
 
 
 if __name__ == '__main__':
-    fire.Fire(train)
+    fire.Fire(test)

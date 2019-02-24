@@ -49,12 +49,23 @@ class VaeLayers(object):
         return x * (style_scale[:, None, None, :] + 1) + style_bias[:, None, None, :]
 
     @staticmethod
+    def from_image(x, f_maps):
+        activation = layers.LeakyReLU(0.2)
+        name = 'conv1'
+        return layers.Conv2D(filters=f_maps,
+                             kernel_size=1,
+                             padding='same',
+                             activation=activation,
+                             name=name)(x)
+
+    @staticmethod
     def conv3(x, f_maps, activation, blur=False, add_noise=True):
         name = 'conv3'
         x = layers.Conv2D(filters=f_maps,
                           kernel_size=3,
                           padding='same',
-                          activation=activation,
+                          activation=None,
+                          use_bias=False,
                           name=name)(x)
         if blur:
             x = VaeLayers.blur_2d(x)
@@ -117,7 +128,8 @@ class VaeLayers(object):
     @staticmethod
     def first_cell_up(var, style, f_maps, activation=layers.LeakyReLU(0.2)):
         with tf.variable_scope('first-cell-up'):
-            x = VaeLayers.additive_noise(var)
+            x = tf.identity(var)
+            x = VaeLayers.additive_noise(x)
             x = VaeLayers.add_bias(x)
             x = activation(x)
             x = VaeLayers.normalize(x)
@@ -129,6 +141,6 @@ class VaeLayers(object):
 
     @staticmethod
     def cell_down(x, f_maps, activation=layers.LeakyReLU(0.2)):
-        x = VaeLayers.conv3(x, f_maps, activation)
-        x = VaeLayers.conv3_stride2(x, f_maps - 1, activation)
+        x = VaeLayers.conv3(x, f_maps[0], activation, add_noise=False)
+        x = VaeLayers.conv3_stride2(x, f_maps[1], activation)
         return x

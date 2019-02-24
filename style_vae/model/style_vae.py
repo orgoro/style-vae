@@ -43,11 +43,12 @@ class StyleVae:
 
     def encode(self, image: tf.Tensor) -> tf.Tensor:
         with tf.variable_scope('Encoder'):
-            x = image
             log2_dim = int(np.log2(self.config.img_dim))
+            x = VaeLayers.from_image(image, log2_dim)
 
             for res in np.arange(log2_dim, 2, -1):
-                x = VaeLayers.cell_down(x, self.nf(res-1))
+                f_maps = (self.nf(res-1), self.nf(res-2))
+                x = VaeLayers.cell_down(x, f_maps)
 
             x = layers.Flatten()(x)
             x = layers.Dense(self.config.code_size)(x)
@@ -56,7 +57,7 @@ class StyleVae:
     def decode(self, code: tf.Tensor):
         with tf.variable_scope('Decoder'):
             # first block
-            first_var = tf.Variable(initial_value=tf.random_normal((1, 4, 4, self.nf(1))))
+            first_var = tf.Variable(initial_value=tf.random_normal((1, 4, 4, self.nf(1))), dtype=tf.float32)
             x = VaeLayers.first_cell_up(first_var, f_maps=self.nf(1), style=code)
 
             # blocks
