@@ -143,3 +143,8 @@ class VaeLayers(object):
         x = VaeLayers.conv3(x, f_maps[0], activation, add_noise=False)
         x = VaeLayers.conv3_stride2(x, f_maps[1], activation)
         return x
+
+    @staticmethod
+    def map_cell(x):
+        mapper = layers.Dense(x.shape[1])
+        return mapper(x)

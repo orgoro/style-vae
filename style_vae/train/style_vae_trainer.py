@@ -24,13 +24,18 @@ class StyleVaePh:
 @dataclass
 class StyleVaeStub:
     code: tf.Tensor
-    # code_loss: tf.Tensor
     recon_img: tf.Tensor
     recon_loss: tf.Tensor
+    latent_loss: tf.Tensor
+    combined_loss: tf.Tensor
     opt_step: tf.Operation
 
     def get_validate_fetch(self) -> dict:
-        return {'code': self.code, 'recon_img': self.recon_img, 'recon_loss': self.recon_loss}
+        return {'code': self.code,
+                'recon_img': self.recon_img,
+                'recon_loss': self.recon_loss,
+                'latent_loss': self.latent_loss,
+                'comb_loss': self.combined_loss}
 
     def get_train_fetch(self) -> dict:
         return {**{'opt_step': self.opt_step}, **self.get_validate_fetch()}
@@ -52,23 +57,33 @@ class StyleVaeTrainer(object):
         self._train_summary, self._val_summary = self._add_summary()
 
     def _build_graph(self):
+        img_ph = self._build_ph()
+
+        with tf.variable_scope('Generator'):
+            code_mean, code_log_std = self._model.encode(img_ph)
+            code = self._model.map(code_mean, code_log_std)
+            recon_img = self._model.decode(code)
+
+        # losses
+        with tf.variable_scope('Loss'):
+            latent_loss = self._build_latent_loss(code_mean, code_log_std)
+            recon_loss = self._build_recon_loss(img_ph, recon_img)
+            combined_loss = latent_loss + recon_loss
+
+        optimizer = tf.train.AdamOptimizer(self._config.lr)
+        opt_step = optimizer.minimize(combined_loss, global_step=self._global_step)
+        self._stub = StyleVaeStub(code, recon_img, recon_loss, latent_loss, combined_loss, opt_step)
+
+    def _build_ph(self):
         img_dim = self._model.config.img_dim
         ch = self._model.config.num_channels
         img_ph = tf.placeholder(dtype=tf.float32, shape=(None, img_dim, img_dim, ch), name='img_ph')
         self._ph = StyleVaePh(img_ph)
-
-        code = self._model.encode(img_ph)  # tf.Variable(np.ones((128, 200), dtype=np.float32))
-        # code_loss =
-        recon_img = self._model.decode(code)
-        recon_loss = self._build_recon_loss(img_ph, recon_img)
-
-        optimizer = tf.train.AdamOptimizer(self._config.lr)
-        opt_step = optimizer.minimize(recon_loss, global_step=self._global_step)
-        self._stub = StyleVaeStub(code, recon_img, recon_loss, opt_step)
+        return img_ph
 
     def _build_recon_loss(self, img_ph, recon_img):
         loss_type = self._config.recon_loss
-        with tf.variable_scope(f'recon-loss/{loss_type}'):
+        with tf.variable_scope(f'Recon-Loss/{loss_type}'):
             if loss_type == 'perceptual':
                 perceptual_model = PerceptualModel()
                 f1 = perceptual_model(img_ph)
@@ -80,16 +95,29 @@ class StyleVaeTrainer(object):
                 raise NotImplementedError(f'loss type: {loss_type} not implemented')
         return recon_loss
 
-    def _add_summary(self):
-        train_summary_recon_loss = tf.summary.scalar('train/recon_loss', self._stub.recon_loss)
-        train_summary_recon = tf.summary.image('train/recon', self._stub.recon_img)
-        train_summary_src = tf.summary.image('train/src', self._ph.img_ph)
-        train_summary = tf.summary.merge([train_summary_recon_loss, train_summary_recon, train_summary_src])
+    def _build_latent_loss(self, code_mean, code_log_std):
+        with tf.variable_scope(f'Latent-Loss'):
+            kl_loss = -0.5 * tf.reduce_sum(1 + 2 * code_log_std - tf.square(code_mean) - tf.exp(2 * code_log_std), 1)
+            kl_loss = tf.reduce_mean(kl_loss)
+            kl_loss *= self._config.latent_weight
+        return kl_loss
 
-        val_summary_recon_loss = tf.summary.scalar('val/recon_loss', self._stub.recon_loss)
-        val_summary_recon = tf.summary.image('val/recon', self._stub.recon_img)
-        val_summary_src = tf.summary.image('val/src', self._ph.img_ph)
-        val_summary = tf.summary.merge([val_summary_recon_loss, val_summary_recon, val_summary_src])
+    def _add_summary(self):
+        train_sum_comb_loss = tf.summary.scalar('train/comb_loss', self._stub.combined_loss)
+        train_sum_latent_loss = tf.summary.scalar('train/latent_loss', self._stub.latent_loss)
+        train_sum_recon_loss = tf.summary.scalar('train/recon_loss', self._stub.recon_loss)
+        train_sum_recon = tf.summary.image('train/recon', self._stub.recon_img)
+        train_sum_src = tf.summary.image('train/src', self._ph.img_ph)
+        train_sums = [train_sum_comb_loss, train_sum_latent_loss, train_sum_recon_loss, train_sum_recon, train_sum_src]
+        train_summary = tf.summary.merge(train_sums)
+
+        val_sum_comb_loss = tf.summary.scalar('val/comb_loss', self._stub.combined_loss)
+        val_sum_latent_loss = tf.summary.scalar('val/latent_loss', self._stub.latent_loss)
+        val_sum_recon_loss = tf.summary.scalar('val/recon_loss', self._stub.recon_loss)
+        val_sum_recon = tf.summary.image('val/recon', self._stub.recon_img)
+        val_sum_src = tf.summary.image('val/src', self._ph.img_ph)
+        val_sums = [val_sum_comb_loss, val_sum_latent_loss, val_sum_recon_loss, val_sum_recon, val_sum_src]
+        val_summary = tf.summary.merge(val_sums)
 
         return train_summary, val_summary
 

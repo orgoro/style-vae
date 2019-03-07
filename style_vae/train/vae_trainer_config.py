@@ -10,6 +10,7 @@ class VaeTrainerConfig:
     num_epochs: int = 500
     lr: float = 1e-5
     recon_loss: str = 'perceptual'
+    latent_weight: float = 0.5
 
     def __str__(self):
         res = 'VaeTrainerConfig:\n'
