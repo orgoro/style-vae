@@ -9,14 +9,14 @@ class VaeLayers(object):
     @staticmethod
     def normalize(x, epsilon=1e-8):
         """Pixelwise feature vector normalization"""
-        with tf.variable_scope('normalize'):
+        with tf.variable_scope('Normalize'):
             x -= tf.reduce_mean(x, axis=[1, 2], keepdims=True)
             x *= tf.rsqrt(tf.reduce_mean(tf.square(x), axis=[1, 2], keepdims=True) + epsilon)
             return x
 
     @staticmethod
     def blur_2d(x):
-        with tf.variable_scope('blur2d'):
+        with tf.variable_scope('Blur2d'):
             kernel = np.array([[1., 2., 1.], [2., 4., 2.], [1., 2., 1.]])
             kernel /= np.sum(kernel)
             blur_filter = tf.constant(kernel, dtype=tf.float32)
@@ -59,21 +59,22 @@ class VaeLayers(object):
 
     @staticmethod
     def conv3(x, f_maps, activation, blur=False, add_noise=True):
-        name = 'conv3'
-        x = layers.Conv2D(filters=f_maps,
-                          kernel_size=3,
-                          padding='same',
-                          activation=None,
-                          use_bias=False,
-                          name=name)(x)
-        if blur:
-            x = VaeLayers.blur_2d(x)
+        with tf.variable_scope('Cell'):
+            name = 'conv3'
+            x = layers.Conv2D(filters=f_maps,
+                              kernel_size=3,
+                              padding='same',
+                              activation=None,
+                              use_bias=False,
+                              name=name)(x)
+            if blur:
+                x = VaeLayers.blur_2d(x)
 
-        if add_noise:
-            x = VaeLayers.additive_noise(x)
+            if add_noise:
+                x = VaeLayers.additive_noise(x)
 
-        x = VaeLayers.add_bias(x)
-        x = activation(x)
+            x = VaeLayers.add_bias(x)
+            x = activation(x)
         return x
 
     @staticmethod
@@ -89,7 +90,7 @@ class VaeLayers(object):
 
     @staticmethod
     def cell_up(x, f_maps, style, activation=layers.LeakyReLU(0.2)):
-        with tf.variable_scope('cell-up'):
+        with tf.variable_scope('Cell-up'):
             size = [2 * int(x.shape[1]), 2 * int(x.shape[2])]
             x = tf.image.resize_nearest_neighbor(x, size, align_corners=True)
             x = VaeLayers.conv3(x, f_maps, activation, blur=True)
@@ -126,7 +127,7 @@ class VaeLayers(object):
 
     @staticmethod
     def first_cell_up(var, style, f_maps, activation=layers.LeakyReLU(0.2)):
-        with tf.variable_scope('first-cell-up'):
+        with tf.variable_scope('First-cell-up'):
             x = tf.identity(var)
             x = VaeLayers.additive_noise(x)
             x = VaeLayers.add_bias(x)
@@ -140,11 +141,12 @@ class VaeLayers(object):
 
     @staticmethod
     def cell_down(x, f_maps, activation=layers.LeakyReLU(0.2)):
-        x = VaeLayers.conv3(x, f_maps[0], activation, add_noise=False)
-        x = VaeLayers.conv3_stride2(x, f_maps[1], activation)
+        with tf.variable_scope('Cell-down'):
+            x = VaeLayers.conv3(x, f_maps[0], activation, add_noise=False)
+            x = VaeLayers.conv3_stride2(x, f_maps[1], activation)
         return x
 
     @staticmethod
     def map_cell(x):
-        mapper = layers.Dense(x.shape[1])
+        mapper = layers.Dense(x.shape[1], name='map-cell')
         return mapper(x)

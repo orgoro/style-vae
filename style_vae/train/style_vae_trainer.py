@@ -22,6 +22,26 @@ class StyleVaePh:
 
 
 @dataclass
+class StyleVaeSummary:
+    val_loss_summary: tf.Tensor
+    val_images_summary: tf.Tensor
+    train_loss_summary: tf.Tensor
+    train_images_summary: tf.Tensor
+
+    def get_loss_sum(self, phase):
+        if phase == 'val':
+            return self.val_loss_summary
+        else:
+            return self.train_loss_summary
+
+    def get_img_sum(self, phase):
+        if phase == 'val':
+            return self.val_images_summary
+        else:
+            return self.train_images_summary
+
+
+@dataclass
 class StyleVaeStub:
     code: tf.Tensor
     recon_img: tf.Tensor
@@ -48,13 +68,16 @@ class StyleVaeTrainer(object):
         self._model = model
         self._config = config
         self._sess = sess
+        self._global_step = tf.train.create_global_step()
+
         self._ph = None  # type: StyleVaePh
         self._stub = None  # type: StyleVaeStub
-        self._global_step = tf.train.create_global_step()
         self._build_graph()
+
         self._saver = tf.train.Saver()
         self._graph_writer = tf.summary.FileWriter(OUT, graph=self._sess.graph)
-        self._train_summary, self._val_summary = self._add_summary()
+        self._summ = None  # type: StyleVaeSummary
+        self._add_summary()
 
     def _build_graph(self):
         img_ph = self._build_ph()
@@ -64,22 +87,24 @@ class StyleVaeTrainer(object):
             code = self._model.map(code_mean, code_log_std)
             recon_img = self._model.decode(code)
 
-        # losses
         with tf.variable_scope('Loss'):
             latent_loss = self._build_latent_loss(code_mean, code_log_std)
             recon_loss = self._build_recon_loss(img_ph, recon_img)
             combined_loss = latent_loss + recon_loss
 
-        optimizer = tf.train.AdamOptimizer(self._config.lr)
-        opt_step = optimizer.minimize(combined_loss, global_step=self._global_step)
+        with tf.variable_scope('Optimizer'):
+            optimizer = tf.train.AdamOptimizer(self._config.lr)
+            opt_step = optimizer.minimize(combined_loss, global_step=self._global_step)
+
         self._stub = StyleVaeStub(code, recon_img, recon_loss, latent_loss, combined_loss, opt_step)
 
     def _build_ph(self):
-        img_dim = self._model.config.img_dim
-        ch = self._model.config.num_channels
-        img_ph = tf.placeholder(dtype=tf.float32, shape=(None, img_dim, img_dim, ch), name='img_ph')
-        self._ph = StyleVaePh(img_ph)
-        return img_ph
+        with tf.variable_scope('Input'):
+            img_dim = self._model.config.img_dim
+            ch = self._model.config.num_channels
+            img_ph = tf.placeholder(dtype=tf.float32, shape=(None, img_dim, img_dim, ch), name='img_ph')
+            self._ph = StyleVaePh(img_ph)
+            return img_ph
 
     def _build_recon_loss(self, img_ph, recon_img):
         loss_type = self._config.recon_loss
@@ -103,26 +128,28 @@ class StyleVaeTrainer(object):
         return kl_loss
 
     def _add_summary(self):
-        train_sum_comb_loss = tf.summary.scalar('train/comb_loss', self._stub.combined_loss)
-        train_sum_latent_loss = tf.summary.scalar('train/latent_loss', self._stub.latent_loss)
-        train_sum_recon_loss = tf.summary.scalar('train/recon_loss', self._stub.recon_loss)
-        train_sum_recon = tf.summary.image('train/recon', self._stub.recon_img)
-        train_sum_src = tf.summary.image('train/src', self._ph.img_ph)
-        train_sums = [train_sum_comb_loss, train_sum_latent_loss, train_sum_recon_loss, train_sum_recon, train_sum_src]
-        train_summary = tf.summary.merge(train_sums)
+        with tf.variable_scope('Summary'):
+            train_sum_comb_loss = tf.summary.scalar('train/comb_loss', self._stub.combined_loss)
+            train_sum_latent_loss = tf.summary.scalar('train/latent_loss', self._stub.latent_loss)
+            train_sum_recon_loss = tf.summary.scalar('train/recon_loss', self._stub.recon_loss)
+            train_sum_recon = tf.summary.image('train/recon', self._stub.recon_img)
+            train_sum_src = tf.summary.image('train/src', self._ph.img_ph)
+            train_loss_summary = tf.summary.merge([train_sum_comb_loss, train_sum_latent_loss, train_sum_recon_loss])
+            train_imgs_summary = tf.summary.merge([train_sum_recon, train_sum_src])
 
-        val_sum_comb_loss = tf.summary.scalar('val/comb_loss', self._stub.combined_loss)
-        val_sum_latent_loss = tf.summary.scalar('val/latent_loss', self._stub.latent_loss)
-        val_sum_recon_loss = tf.summary.scalar('val/recon_loss', self._stub.recon_loss)
-        val_sum_recon = tf.summary.image('val/recon', self._stub.recon_img)
-        val_sum_src = tf.summary.image('val/src', self._ph.img_ph)
-        val_sums = [val_sum_comb_loss, val_sum_latent_loss, val_sum_recon_loss, val_sum_recon, val_sum_src]
-        val_summary = tf.summary.merge(val_sums)
+            val_sum_comb_loss = tf.summary.scalar('val/comb_loss', self._stub.combined_loss)
+            val_sum_latent_loss = tf.summary.scalar('val/latent_loss', self._stub.latent_loss)
+            val_sum_recon_loss = tf.summary.scalar('val/recon_loss', self._stub.recon_loss)
+            val_sum_recon = tf.summary.image('val/recon', self._stub.recon_img)
+            val_sum_src = tf.summary.image('val/src', self._ph.img_ph)
+            val_loss_summary = tf.summary.merge([val_sum_comb_loss, val_sum_latent_loss, val_sum_recon_loss])
+            val_imgs_summary = tf.summary.merge([val_sum_recon, val_sum_src])
 
-        return train_summary, val_summary
+            self._summ = StyleVaeSummary(val_loss_summary, val_imgs_summary, train_loss_summary, train_imgs_summary)
 
     def train(self, dataset):
         fetches = self._stub.get_train_fetch()
+        fetches['summary'] = self._summ.get_loss_sum('train')
         for e in range(self._config.num_epochs):
             self.EPOCH = e
             self._run_epoch(dataset.train, fetches, phase='train')
@@ -136,21 +163,23 @@ class StyleVaeTrainer(object):
             offset = step * self._config.batch_size
             img = images[offset: offset + self._config.batch_size]
             res = self._sess.run(fetches, self._ph.get_feed(img))
-            cur_loss = res['recon_loss']
-            progress.set_description(f'{phase} epoch {self.EPOCH:3}/{self._config.num_epochs:3}|{step:4}/{steps:4}'
-                                     f' | recon_loss: {cur_loss:.4}')
-            avg_loss += cur_loss
+            loss, loss_r, loss_l = res['comb_loss'], res['recon_loss'], res['latent_loss']
+            progress.set_description(f'{phase} epoch {self.EPOCH:^3}/{self._config.num_epochs:3}|{step:^4}/{steps:^4}'
+                                     f' | loss: {loss:^.4}, recon_loss: {loss_r:^.4}, latent_loss: {loss_l:^.4}')
+            avg_loss += loss
+            self._graph_writer.add_summary(res['summary'])
 
             if step == len(progress) - 1:
-                summary_op = self._train_summary if phase == 'train' else self._val_summary
-                summary, global_step = self._sess.run([summary_op, self._global_step], self._ph.get_feed(img))
-                self._graph_writer.add_summary(summary, global_step=global_step)
+                img_summary_op = self._summ.get_img_sum(phase)
+                img_summary, global_step = self._sess.run([img_summary_op, self._global_step], self._ph.get_feed(img))
+                self._graph_writer.add_summary(img_summary, global_step=global_step)
 
         avg_loss /= steps
         print(f'\n{phase} epoch {self.EPOCH:3}/{self._config.num_epochs:3} --> avg_loss: {avg_loss:.4}')
 
     def validate(self, dataset):
         fetches = self._stub.get_validate_fetch()
+        fetches['summary'] = self._summ.get_loss_sum('validate')
         self._run_epoch(dataset.val, fetches, phase='val')
 
     def save(self, save_path=OUT):
