@@ -4,3 +4,4 @@ from __future__ import division
 
 
 from .style_vae import StyleVae, Config
+from .perceptual_model import PerceptualModel

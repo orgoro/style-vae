@@ -1,7 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-
 # 3rd party:
 import tensorflow as tf
 import numpy as np
@@ -47,13 +43,13 @@ class LayersTester(unittest.TestCase):
         x = tf.ones((batch, size, size, 3))
 
         # ACT:
-        f_maps = 2
+        f_maps = (2, 3)
         scaled_down = VaeLayers.cell_down(x, f_maps)
         self.sess.run(tf.global_variables_initializer())
         result = self.sess.run(scaled_down)
 
         # ASSERT:
-        self.assertEqual(result.shape, (batch, size // 2, size // 2, f_maps), 'shape must be b x 1/2Size x 1/2Size')
+        self.assertEqual(result.shape, (batch, size // 2, size // 2, f_maps[1]), 'shape must be b x 1/2Size x 1/2Size')
 
     def test_when_normalize_then_unit(self):
         # ARRANGE:

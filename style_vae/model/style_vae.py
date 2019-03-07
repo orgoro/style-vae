@@ -1,7 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-
 # 3rd party:
 import tensorflow as tf
 from tensorflow.keras import layers
@@ -18,9 +14,9 @@ from style_vae.model.layers import VaeLayers
 @dataclass
 class Config(object):
     code_size: int = 512
-    img_dim: int = 64
+    img_dim: int = 32
     batch_size: int = 64
-    num_channels: int = 1
+    num_channels: int = 3
     fmap_base: int = 8192
     fmap_decay: int = 1.0
     fmap_max: int = 512

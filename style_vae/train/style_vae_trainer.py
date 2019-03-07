@@ -1,9 +1,4 @@
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-
 # 3rd party:
-from matplotlib import pyplot as plt
 import tensorflow as tf
 from tensorflow.keras import losses as loss
 from dataclasses import dataclass
@@ -12,7 +7,7 @@ from os import path
 
 # different category:
 from style_vae.output import OUT
-from style_vae.model import StyleVae
+from style_vae.model import StyleVae, PerceptualModel
 
 # same category:
 from style_vae.train.vae_trainer_config import VaeTrainerConfig
@@ -58,18 +53,32 @@ class StyleVaeTrainer(object):
 
     def _build_graph(self):
         img_dim = self._model.config.img_dim
-        img_ph = tf.placeholder(dtype=tf.float32, shape=(None, img_dim, img_dim, 1), name='img_ph')
+        ch = self._model.config.num_channels
+        img_ph = tf.placeholder(dtype=tf.float32, shape=(None, img_dim, img_dim, ch), name='img_ph')
         self._ph = StyleVaePh(img_ph)
 
         code = self._model.encode(img_ph)  # tf.Variable(np.ones((128, 200), dtype=np.float32))
         # code_loss =
         recon_img = self._model.decode(code)
-        # l2_loss = tf.reduce_mean(tf.square(img_ph - recon_img), name='recon_loss')
-        recon_loss = tf.reduce_mean(loss.binary_crossentropy(img_ph, recon_img))
+        recon_loss = self._build_recon_loss(img_ph, recon_img)
 
         optimizer = tf.train.AdamOptimizer(self._config.lr)
         opt_step = optimizer.minimize(recon_loss, global_step=self._global_step)
         self._stub = StyleVaeStub(code, recon_img, recon_loss, opt_step)
+
+    def _build_recon_loss(self, img_ph, recon_img):
+        loss_type = self._config.recon_loss
+        with tf.variable_scope(f'recon-loss/{loss_type}'):
+            if loss_type == 'perceptual':
+                perceptual_model = PerceptualModel()
+                f1 = perceptual_model(img_ph)
+                f2 = perceptual_model(recon_img)
+                recon_loss = tf.reduce_mean(tf.square(f1 - f2))
+            elif loss_type == 'l2':
+                recon_loss = tf.reduce_mean(loss.binary_crossentropy(img_ph, recon_img))
+            else:
+                raise NotImplementedError(f'loss type: {loss_type} not implemented')
+        return recon_loss
 
     def _add_summary(self):
         train_summary_recon_loss = tf.summary.scalar('train/recon_loss', self._stub.recon_loss)
@@ -85,12 +94,10 @@ class StyleVaeTrainer(object):
         return train_summary, val_summary
 
     def train(self, dataset):
-        phase = 'train'
-
         fetches = self._stub.get_train_fetch()
         for e in range(self._config.num_epochs):
             self.EPOCH = e
-            self._run_epoch(dataset.train, fetches, phase)
+            self._run_epoch(dataset.train, fetches, phase='train')
             self.validate(dataset)
 
     def _run_epoch(self, images, fetches, phase):
@@ -115,9 +122,8 @@ class StyleVaeTrainer(object):
         print(f'\n{phase} epoch {self.EPOCH:3}/{self._config.num_epochs:3} --> avg_loss: {avg_loss:.4}')
 
     def validate(self, dataset):
-        phase = 'val'
         fetches = self._stub.get_validate_fetch()
-        self._run_epoch(dataset.val, fetches, phase)
+        self._run_epoch(dataset.val, fetches, phase='val')
 
     def save(self, save_path=OUT):
         print('save')
@@ -140,4 +146,3 @@ class StyleVaeTrainer(object):
         fetch = self._stub.get_validate_fetch()
         result = self._sess.run(fetch, feed_dict)
         return result
-

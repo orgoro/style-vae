@@ -1,15 +1,4 @@
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-
-# 3rd party:
 from dataclasses import dataclass
-
-
-# same category:
-
-
-# different category:
 
 
 @dataclass
@@ -20,6 +9,7 @@ class VaeTrainerConfig:
     batch_size: int = 64
     num_epochs: int = 500
     lr: float = 1e-5
+    recon_loss: str = 'perceptual'
 
     def __str__(self):
         res = 'VaeTrainerConfig:\n'
