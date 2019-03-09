@@ -7,7 +7,7 @@ import numpy as np
 # different category:
 from style_vae.model import StyleVae, Config
 from style_vae.data import Dataset
-from style_vae.output import OUT
+from style_vae.train_output import OUT
 
 # same category:
 from style_vae.train.style_vae_trainer import StyleVaeTrainer

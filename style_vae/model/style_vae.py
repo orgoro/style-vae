@@ -14,7 +14,7 @@ from style_vae.model.layers import VaeLayers
 @dataclass
 class Config(object):
     code_size: int = 512
-    img_dim: int = 32
+    img_dim: int = 64
     batch_size: int = 64
     num_channels: int = 3
     fmap_base: int = 8192
