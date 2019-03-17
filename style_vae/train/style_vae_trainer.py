@@ -51,10 +51,12 @@ class StyleVaeStub:
     latent_loss: tf.Tensor
     combined_loss: tf.Tensor
     opt_step: tf.Operation
+    rand_img: tf.Tensor
 
     def get_validate_fetch(self) -> dict:
         return {'code': self.code,
                 'recon_img': self.recon_img,
+                'rand_img': self.rand_img,
                 'recon_loss': self.recon_loss,
                 'latent_loss': self.latent_loss,
                 'comb_loss': self.combined_loss}
@@ -93,6 +95,10 @@ class StyleVaeTrainer(object):
             code = self._model.map(code_mean, code_log_std)
             recon_img = self._model.decode(code)
 
+            zeros, ones = tf.zeros_like(code_mean), tf.ones_like(code_log_std)
+            rand_code = self._model.map(zeros, ones)
+            rand_img = self._model.decode(rand_code)
+
         with tf.variable_scope('Loss'):
             latent_loss = self._build_latent_loss(code_mean, code_log_std)
             recon_loss = self._build_recon_loss(img_ph, recon_img)
@@ -102,7 +108,7 @@ class StyleVaeTrainer(object):
             optimizer = tf.train.AdamOptimizer(self._config.lr)
             opt_step = optimizer.minimize(combined_loss, global_step=self._global_step)
 
-        self._stub = StyleVaeStub(code, recon_img, recon_loss, latent_loss, combined_loss, opt_step)
+        self._stub = StyleVaeStub(code, recon_img, recon_loss, latent_loss, combined_loss, opt_step, rand_img)
 
     def _build_ph(self):
         with tf.variable_scope('Input'):
@@ -171,13 +177,15 @@ class StyleVaeTrainer(object):
             train_sum_recon_loss = tf.summary.scalar('train/recon_loss', self._stub.recon_loss)
             train_sum_recon = tf.summary.image('train/recon', tf.clip_by_value(self._stub.recon_img, 0, 1))
             train_sum_src = tf.summary.image('train/src', self._img_ph)
+            train_sum_rand = tf.summary.image('train/rand', tf.clip_by_value(self._stub.rand_img,0, 1))
             train_loss_summary = tf.summary.merge([train_sum_comb_loss, train_sum_latent_loss, train_sum_recon_loss])
-            train_imgs_summary = tf.summary.merge([train_sum_recon, train_sum_src])
+            train_imgs_summary = tf.summary.merge([train_sum_recon, train_sum_src, train_sum_rand])
 
             val_sum_comb_loss = tf.summary.scalar('val/comb_loss', self._stub.combined_loss)
             val_sum_latent_loss = tf.summary.scalar('val/latent_loss', self._stub.latent_loss)
             val_sum_recon_loss = tf.summary.scalar('val/recon_loss', self._stub.recon_loss)
             val_sum_recon = tf.summary.image('val/recon', tf.clip_by_value(self._stub.recon_img, 0, 1))
+            train_sum_rand = tf.summary.image('val/rand', tf.clip_by_value(self._stub.rand_img,0, 1))
             val_sum_src = tf.summary.image('val/src', self._img_ph)
             val_loss_summary = tf.summary.merge([val_sum_comb_loss, val_sum_latent_loss, val_sum_recon_loss])
             val_imgs_summary = tf.summary.merge([val_sum_recon, val_sum_src])
