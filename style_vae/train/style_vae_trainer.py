@@ -188,7 +188,7 @@ class StyleVaeTrainer(object):
             train_sum_rand = tf.summary.image('val/rand', tf.clip_by_value(self._stub.rand_img,0, 1))
             val_sum_src = tf.summary.image('val/src', self._img_ph)
             val_loss_summary = tf.summary.merge([val_sum_comb_loss, val_sum_latent_loss, val_sum_recon_loss])
-            val_imgs_summary = tf.summary.merge([val_sum_recon, val_sum_src])
+            val_imgs_summary = tf.summary.merge([val_sum_recon, val_sum_src, train_sum_rand])
 
             self._summ = StyleVaeSummary(val_loss_summary, val_imgs_summary, train_loss_summary, train_imgs_summary)
 
