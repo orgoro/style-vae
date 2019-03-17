@@ -80,7 +80,7 @@ class StyleVaeTrainer(object):
         self._stub = None  # type: StyleVaeStub
         self._build_graph()
 
-        self._saver = tf.train.Saver()
+        self._saver = tf.train.Saver(max_to_keep=2)
         self._graph_writer = tf.summary.FileWriter(OUT, graph=self._sess.graph)
         self._summ = None  # type: StyleVaeSummary
         self._add_summary()
@@ -150,7 +150,7 @@ class StyleVaeTrainer(object):
                 perceptual_model = PerceptualModel()
                 f1 = perceptual_model(img_ph)
                 f2 = perceptual_model(recon_img)
-                recon_loss = tf.reduce_mean(tf.square(f1 - f2))
+                recon_loss = tf.reduce_mean(tf.reduce_sum(tf.square(f1 - f2), axis=1))
             elif loss_type == 'l2':
                 recon_loss = tf.reduce_mean(loss.binary_crossentropy(img_ph, recon_img))
             else:
@@ -169,7 +169,7 @@ class StyleVaeTrainer(object):
             train_sum_comb_loss = tf.summary.scalar('train/comb_loss', self._stub.combined_loss)
             train_sum_latent_loss = tf.summary.scalar('train/latent_loss', self._stub.latent_loss)
             train_sum_recon_loss = tf.summary.scalar('train/recon_loss', self._stub.recon_loss)
-            train_sum_recon = tf.summary.image('train/recon', self._stub.recon_img)
+            train_sum_recon = tf.summary.image('train/recon', tf.clip_by_value(self._stub.recon_img, 0, 1))
             train_sum_src = tf.summary.image('train/src', self._img_ph)
             train_loss_summary = tf.summary.merge([train_sum_comb_loss, train_sum_latent_loss, train_sum_recon_loss])
             train_imgs_summary = tf.summary.merge([train_sum_recon, train_sum_src])
@@ -177,7 +177,7 @@ class StyleVaeTrainer(object):
             val_sum_comb_loss = tf.summary.scalar('val/comb_loss', self._stub.combined_loss)
             val_sum_latent_loss = tf.summary.scalar('val/latent_loss', self._stub.latent_loss)
             val_sum_recon_loss = tf.summary.scalar('val/recon_loss', self._stub.recon_loss)
-            val_sum_recon = tf.summary.image('val/recon', self._stub.recon_img)
+            val_sum_recon = tf.summary.image('val/recon', tf.clip_by_value(self._stub.recon_img, 0, 1))
             val_sum_src = tf.summary.image('val/src', self._img_ph)
             val_loss_summary = tf.summary.merge([val_sum_comb_loss, val_sum_latent_loss, val_sum_recon_loss])
             val_imgs_summary = tf.summary.merge([val_sum_recon, val_sum_src])
@@ -186,30 +186,36 @@ class StyleVaeTrainer(object):
 
     def train(self, dataset):
         fetches = self._stub.get_train_fetch()
-        fetches['summary'] = self._summ.get_loss_sum('train')
+
         for e in range(self._config.num_epochs):
             self.EPOCH = e
             self._sess.run(self._iter_init)
-            self._run_epoch(dataset.train, fetches, phase='train')
-            self.validate(dataset)
+            # self._run_epoch(dataset.train, fetches, phase='train')
+            self._run_epoch(None, fetches, phase='train')
+            self.validate(None)
+            self.save()
 
     def _run_epoch(self, images, fetches, phase):
+        images = None
+        fetches['summary'] = self._summ.get_loss_sum(phase)
+        fetches['global_step'] = self._global_step
         steps = self._num_train if phase == 'train' else self._num_val
         progress = tqdm(range(steps))
         avg_loss = 0
         for step in progress:
             offset = step * self._config.batch_size
-            img = images[offset: offset + self._config.batch_size]
+            # img = images[offset: offset + self._config.batch_size]
             res = self._sess.run(fetches)  # , self._ph.get_feed(img))
             loss_c, loss_r, loss_l = res['comb_loss'], res['recon_loss'], res['latent_loss']
             progress.set_description(f'{phase} epoch {self.EPOCH:^3}/{self._config.num_epochs:3}|{step:^4}/{steps:^4}'
                                      f' | loss: {loss_c:^.4}, recon_loss: {loss_r:^.4}, latent_loss: {loss_l:^.4}')
             avg_loss += loss_c
-            self._graph_writer.add_summary(res['summary'])
+            self._graph_writer.add_summary(res['summary'], global_step=res['global_step'])
 
             if step == len(progress) - 1:
                 img_summary_op = self._summ.get_img_sum(phase)
-                img_summary, global_step = self._sess.run([img_summary_op, self._global_step], self._ph.get_feed(img))
+                img_summary, global_step = self._sess.run(
+                    [img_summary_op, self._global_step])  # , self._ph.get_feed(img))
                 self._graph_writer.add_summary(img_summary, global_step=global_step)
 
         avg_loss /= steps
@@ -218,7 +224,8 @@ class StyleVaeTrainer(object):
     def validate(self, dataset):
         fetches = self._stub.get_validate_fetch()
         fetches['summary'] = self._summ.get_loss_sum('validate')
-        self._run_epoch(dataset.val, fetches, phase='val')
+        # self._run_epoch(dataset.val, fetches, phase='val')
+        self._run_epoch(None, fetches, phase='val')
 
     def save(self, save_path=OUT):
         print('save')

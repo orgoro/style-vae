@@ -4,13 +4,13 @@ from dataclasses import dataclass
 @dataclass
 class VaeTrainerConfig:
     name: str = 'default-vae'
-    reload_model: bool = False
+    reload_model: bool = True
     save_model: bool = True
-    batch_size: int = 64
-    num_epochs: int = 500
-    lr: float = 1e-5
+    batch_size: int = 32
+    num_epochs: int = 20
+    lr: float = 5e-5
     recon_loss: str = 'perceptual'
-    latent_weight: float = 0.5
+    latent_weight: float = 10
 
     def __str__(self):
         res = 'VaeTrainerConfig:\n'

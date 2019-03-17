@@ -16,14 +16,10 @@ from style_vae.train.vae_trainer_config import VaeTrainerConfig
 
 def train(load: bool):
     trainer = _build_trainer()
-    dataset = Dataset.get_cifar10()
-
-    save_path = OUT
+    dataset = None  # Dataset.get_cifar10()
     if load:
-        trainer.load(save_path)
+        trainer.load()
     trainer.train(dataset)
-    trainer.validate(dataset)
-    trainer.save(save_path)
 
 
 def test():
