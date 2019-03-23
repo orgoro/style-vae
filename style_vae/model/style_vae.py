@@ -13,7 +13,7 @@ from style_vae.model.layers import VaeLayers
 
 @dataclass
 class Config(object):
-    code_size: int = 100
+    code_size: int = 256
     img_dim: int = 64
     batch_size: int = 32
     num_channels: int = 3

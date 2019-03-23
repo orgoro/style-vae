@@ -1,6 +1,8 @@
 # 3rd party:
 import tensorflow as tf
 from tensorflow.keras import losses as loss
+from tensorflow.keras import models as model
+from tensorflow.keras import layers as layer
 from tensorflow import data
 from dataclasses import dataclass
 from tqdm import tqdm
@@ -90,19 +92,21 @@ class StyleVaeTrainer(object):
     def _build_graph(self):
         img_ph = self._build_ph()
 
-        with tf.variable_scope('Generator'):
-            code_mean, code_log_std = self._model.encode(img_ph)
-            code = self._model.map(code_mean, code_log_std)
-            recon_img = self._model.decode(code)
+        code_mean, code_log_std = self._model.encode(img_ph)
+        print(f'trainable: {len(tf.trainable_variables())}')
 
-            zeros, ones = tf.zeros_like(code_mean), tf.ones_like(code_log_std)
-            rand_code = self._model.map(zeros, ones)
-            rand_img = self._model.decode(rand_code)
+        with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
+            zeros = tf.zeros_like(code_mean)
+            code_mean_pad = tf.concat([code_mean, zeros], 0)
+            code_log_std_pad = tf.concat([code_log_std, zeros], 0)
+            code = self._model.map(code_mean_pad, code_log_std_pad)
+            recon_img, rand_img = tf.split(self._model.decode(code), 2)
 
         with tf.variable_scope('Loss'):
             latent_loss = self._build_latent_loss(code_mean, code_log_std)
             recon_loss = self._build_recon_loss(img_ph, recon_img)
             combined_loss = latent_loss + recon_loss
+        print(f'trainable: {len(tf.trainable_variables())}')
 
         with tf.variable_scope('Optimizer'):
             optimizer = tf.train.AdamOptimizer(self._config.lr)
