@@ -20,4 +20,4 @@ The loss is comprised out of two components:
 
 ## Random Sample Results
 
-   ![random](style_vae/doc/rand.png =200x)
+   ![random](style_vae/doc/rand.png)
