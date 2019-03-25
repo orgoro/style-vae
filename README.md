@@ -11,9 +11,13 @@ The loss is comprised out of two components:
 
 ## Reconstruction Results
 * **512 params:**
-
+	
 	![512](style_vae/doc/512.png)
 
 * **100 params:**
 
 	![100](style_vae/doc/100.png)
+
+## Random Sample Results
+
+   ![random](style_vae/doc/rand.png =200x)
