@@ -31,7 +31,8 @@ class StyleVaeTester(unittest.TestCase):
         img = tf.ones((batch, size, size, 3))
 
         # ACT:
-        code = self.style_vae.encode(img)
+        code_mean, code_log_std = self.style_vae.encode(img)
+        code = self.style_vae.map(code_mean, code_log_std)
         recon_img = self.style_vae.decode(code)
 
         # ASSERT:
