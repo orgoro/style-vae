@@ -1,8 +1,6 @@
 # 3rd party:
 import tensorflow as tf
 from tensorflow.keras import losses as loss
-from tensorflow.keras import models as model
-from tensorflow.keras import layers as layer
 from tensorflow import data
 from dataclasses import dataclass
 from tqdm import tqdm
@@ -93,7 +91,6 @@ class StyleVaeTrainer(object):
         img_ph = self._build_ph()
 
         code_mean, code_log_std = self._model.encode(img_ph)
-        print(f'trainable: {len(tf.trainable_variables())}')
 
         with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
             zeros = tf.zeros_like(code_mean)
@@ -106,7 +103,6 @@ class StyleVaeTrainer(object):
             latent_loss = self._build_latent_loss(code_mean, code_log_std)
             recon_loss = self._build_recon_loss(img_ph, recon_img)
             combined_loss = latent_loss + recon_loss
-        print(f'trainable: {len(tf.trainable_variables())}')
 
         with tf.variable_scope('Optimizer'):
             optimizer = tf.train.AdamOptimizer(self._config.lr)
@@ -116,42 +112,36 @@ class StyleVaeTrainer(object):
 
     def _build_ph(self):
         with tf.variable_scope('Input'):
-            if False:
-                img_dim = self._model.config.img_dim
-                ch = self._model.config.num_channels
-                img_ph = tf.placeholder(dtype=tf.float32, shape=(None, img_dim, img_dim, ch), name='img_ph')
-                self._ph = StyleVaePh(img_ph)
-            else:
-                img_paths = glob.glob('/data/celeb_a/images/*.jpg')
-                num_imgs = len(img_paths)
-                num_batches = num_imgs // self._config.batch_size
-                self._num_val = num_batches // 10
-                self._num_test = num_batches // 10
-                self._num_train = num_batches - self._num_val - self._num_test
+            img_paths = glob.glob(self._config.data_regex)
+            num_imgs = len(img_paths)
+            num_batches = num_imgs // self._config.batch_size
+            self._num_val = num_batches // 10
+            self._num_test = num_batches // 10
+            self._num_train = num_batches - self._num_val - self._num_test
 
-                # lambda
-                def preprocess_img(img_path):
-                    im = tf.read_file(img_path)
-                    im = tf.image.decode_image(im, channels=3)
-                    im = im[20:-20, :, :]
-                    im /= 255
-                    return im
+            # lambda
+            def preprocess_img(img_path):
+                im = tf.read_file(img_path)
+                im = tf.image.decode_image(im, channels=3)
+                im = im[20:-20, :, :]
+                im /= 255
+                return im
 
-                # dataset
-                ds = data.Dataset.from_tensor_slices(img_paths)
-                ds = ds.map(preprocess_img)
-                ds = ds.batch(self._config.batch_size, drop_remainder=True)
-                img_iter = ds.make_initializable_iterator()
-                img_ph = img_iter.get_next('img')
+            # dataset
+            ds = data.Dataset.from_tensor_slices(img_paths)
+            ds = ds.map(preprocess_img)
+            ds = ds.batch(self._config.batch_size, drop_remainder=True)
+            img_iter = ds.make_initializable_iterator()
+            img_ph = img_iter.get_next('img')
 
-                # resize image
-                im_size = (self._model.config.img_dim, self._model.config.img_dim)
-                img_ph = tf.image.resize_bilinear(img_ph, im_size)
-                img_ph = tf.reshape(img_ph, (-1, self._model.config.img_dim, self._model.config.img_dim, 3))
-                self._img_ph = img_ph
-                self._iter_init = img_iter.initializer
+            # resize image
+            im_size = (self._model.config.img_dim, self._model.config.img_dim)
+            img_ph = tf.image.resize_bilinear(img_ph, im_size)
+            img_ph = tf.reshape(img_ph, (-1, self._model.config.img_dim, self._model.config.img_dim, 3))
+            self._img_ph = img_ph
+            self._iter_init = img_iter.initializer
 
-            return img_ph
+        return img_ph
 
     def _build_recon_loss(self, img_ph, recon_img):
         loss_type = self._config.recon_loss
@@ -181,7 +171,7 @@ class StyleVaeTrainer(object):
             train_sum_recon_loss = tf.summary.scalar('train/recon_loss', self._stub.recon_loss)
             train_sum_recon = tf.summary.image('train/recon', tf.clip_by_value(self._stub.recon_img, 0, 1))
             train_sum_src = tf.summary.image('train/src', self._img_ph)
-            train_sum_rand = tf.summary.image('train/rand', tf.clip_by_value(self._stub.rand_img,0, 1))
+            train_sum_rand = tf.summary.image('train/rand', tf.clip_by_value(self._stub.rand_img, 0, 1))
             train_loss_summary = tf.summary.merge([train_sum_comb_loss, train_sum_latent_loss, train_sum_recon_loss])
             train_imgs_summary = tf.summary.merge([train_sum_recon, train_sum_src, train_sum_rand])
 
@@ -189,35 +179,31 @@ class StyleVaeTrainer(object):
             val_sum_latent_loss = tf.summary.scalar('val/latent_loss', self._stub.latent_loss)
             val_sum_recon_loss = tf.summary.scalar('val/recon_loss', self._stub.recon_loss)
             val_sum_recon = tf.summary.image('val/recon', tf.clip_by_value(self._stub.recon_img, 0, 1))
-            train_sum_rand = tf.summary.image('val/rand', tf.clip_by_value(self._stub.rand_img,0, 1))
+            train_sum_rand = tf.summary.image('val/rand', tf.clip_by_value(self._stub.rand_img, 0, 1))
             val_sum_src = tf.summary.image('val/src', self._img_ph)
             val_loss_summary = tf.summary.merge([val_sum_comb_loss, val_sum_latent_loss, val_sum_recon_loss])
             val_imgs_summary = tf.summary.merge([val_sum_recon, val_sum_src, train_sum_rand])
 
             self._summ = StyleVaeSummary(val_loss_summary, val_imgs_summary, train_loss_summary, train_imgs_summary)
 
-    def train(self, dataset):
+    def train(self):
         fetches = self._stub.get_train_fetch()
 
         for e in range(self._config.num_epochs):
             self.EPOCH = e
             self._sess.run(self._iter_init)
-            # self._run_epoch(dataset.train, fetches, phase='train')
-            self._run_epoch(None, fetches, phase='train')
-            self.validate(None)
+            self._run_epoch(fetches, phase='train')
+            self.validate()
             self.save()
 
-    def _run_epoch(self, images, fetches, phase):
-        images = None
+    def _run_epoch(self, fetches, phase):
         fetches['summary'] = self._summ.get_loss_sum(phase)
         fetches['global_step'] = self._global_step
         steps = self._num_train if phase == 'train' else self._num_val
         progress = tqdm(range(steps))
         avg_loss = 0
         for step in progress:
-            offset = step * self._config.batch_size
-            # img = images[offset: offset + self._config.batch_size]
-            res = self._sess.run(fetches)  # , self._ph.get_feed(img))
+            res = self._sess.run(fetches)
             loss_c, loss_r, loss_l = res['comb_loss'], res['recon_loss'], res['latent_loss']
             progress.set_description(f'{phase} epoch {self.EPOCH:^3}/{self._config.num_epochs:3}|{step:^4}/{steps:^4}'
                                      f' | loss: {loss_c:^.4}, recon_loss: {loss_r:^.4}, latent_loss: {loss_l:^.4}')
@@ -226,18 +212,16 @@ class StyleVaeTrainer(object):
 
             if step == len(progress) - 1:
                 img_summary_op = self._summ.get_img_sum(phase)
-                img_summary, global_step = self._sess.run(
-                    [img_summary_op, self._global_step])  # , self._ph.get_feed(img))
+                img_summary, global_step = self._sess.run([img_summary_op, self._global_step])
                 self._graph_writer.add_summary(img_summary, global_step=global_step)
 
         avg_loss /= steps
         print(f'\n{phase} epoch {self.EPOCH:3}/{self._config.num_epochs:3} --> avg_loss: {avg_loss:.4}')
 
-    def validate(self, dataset):
+    def validate(self):
         fetches = self._stub.get_validate_fetch()
         fetches['summary'] = self._summ.get_loss_sum('validate')
-        # self._run_epoch(dataset.val, fetches, phase='val')
-        self._run_epoch(None, fetches, phase='val')
+        self._run_epoch(fetches, phase='val')
 
     def save(self, save_path=OUT):
         print('save')
@@ -253,10 +237,3 @@ class StyleVaeTrainer(object):
             self._saver.restore(self._sess, ckpt)
         else:
             print('restore failed!')
-
-    def test(self, dataset):
-        # img = dataset.test[0:10]
-        # feed_dict = self._ph.get_feed(img)
-        fetch = self._stub.get_validate_fetch()
-        result = self._sess.run(fetch)  # , feed_dict)
-        return result

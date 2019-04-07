@@ -20,7 +20,7 @@ class Config(object):
     fmap_base: int = 8192
     fmap_decay: int = 1.0
     fmap_max: int = 512
-    mapper_layers: int = 4
+    mapper_layers: int = 8
     seed: int = 42
 
     def __str__(self):

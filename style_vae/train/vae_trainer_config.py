@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from os import path
 
 
 @dataclass
@@ -8,9 +9,10 @@ class VaeTrainerConfig:
     save_model: bool = True
     batch_size: int = 32
     num_epochs: int = 20
-    lr: float = 5e-5
+    lr: float = 2e-5
     recon_loss: str = 'perceptual'
-    latent_weight: float = 10
+    latent_weight: float = 0.5
+    data_regex: str = path.join('/data', 'ffhq', '*.png')
 
     def __str__(self):
         res = 'VaeTrainerConfig:\n'

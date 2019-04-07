@@ -1,3 +1,7 @@
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+
 # 3rd party:
 import fire
 import tensorflow as tf
@@ -10,11 +14,8 @@ from style_vae.train.style_vae_trainer import StyleVaeTrainer
 from style_vae.train.vae_trainer_config import VaeTrainerConfig
 
 
-def train(load: bool):
-    trainer = _build_trainer()
-    if load:
-        trainer.load()
-    trainer.train()
+def _plot_manifold():
+    pass
 
 
 def _build_trainer() -> StyleVaeTrainer:
@@ -34,6 +35,5 @@ def _build_trainer() -> StyleVaeTrainer:
     sess.run(init_op)
     return trainer
 
-
 if __name__ == '__main__':
-    fire.Fire(train)
+    fire.Fire()
