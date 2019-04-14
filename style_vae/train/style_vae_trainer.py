@@ -204,7 +204,8 @@ class StyleVaeTrainer(object):
             self.save()
 
     def _run_epoch(self, fetches, phase):
-        fetches['summary'] = self._summ.get_loss_sum(phase)
+        if phase == 'train':
+            fetches['summary'] = self._summ.get_loss_sum(phase)
         fetches['global_step'] = self._global_step
         steps = self._num_train if phase == 'train' else self._num_val
         progress = tqdm(range(steps))
@@ -218,8 +219,10 @@ class StyleVaeTrainer(object):
             self._graph_writer.add_summary(res['summary'], global_step=res['global_step'])
 
             if step == len(progress) - 1:
+                loss_summary_op = self._summ.get_loss_sum(phase)
                 img_summary_op = self._summ.get_img_sum(phase)
-                img_summary, global_step = self._sess.run([img_summary_op, self._global_step])
+                img_summary, loss_summary, global_step = self._sess.run([img_summary_op, loss_summary_op, self._global_step])
+                self._graph_writer.add_summary(loss_summary, global_step=global_step)
                 self._graph_writer.add_summary(img_summary, global_step=global_step)
 
         avg_loss /= steps
