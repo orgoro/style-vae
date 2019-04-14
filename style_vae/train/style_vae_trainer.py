@@ -5,6 +5,7 @@ from tensorflow import data
 from dataclasses import dataclass
 from tqdm import tqdm
 from os import path
+import yaml
 import glob
 
 # different category:
@@ -86,6 +87,8 @@ class StyleVaeTrainer(object):
         self._graph_writer = tf.summary.FileWriter(OUT, graph=self._sess.graph)
         self._summ = None  # type: StyleVaeSummary
         self._add_summary()
+        with open(path.join(OUT, 'config.yaml'), 'w') as f:
+            yaml.dump([self._config, self._model.config], f, default_flow_style=False)
 
     def _build_graph(self):
         img_ph = self._build_ph()
@@ -96,8 +99,10 @@ class StyleVaeTrainer(object):
             zeros = tf.zeros_like(code_mean)
             code_mean_pad = tf.concat([code_mean, zeros], 0)
             code_log_std_pad = tf.concat([code_log_std, zeros], 0)
-            code = self._model.map(code_mean_pad, code_log_std_pad)
-            recon_img, rand_img = tf.split(self._model.decode(code), 2)
+            code, code_ph = self._model.map(code_mean_pad, code_log_std_pad)
+
+            decoded = self._model.decode(code)
+            recon_img, rand_img = tf.split(decoded, 2)
 
         with tf.variable_scope('Loss'):
             latent_loss = self._build_latent_loss(code_mean, code_log_std)
@@ -109,6 +114,8 @@ class StyleVaeTrainer(object):
             opt_step = optimizer.minimize(combined_loss, global_step=self._global_step)
 
         self._stub = StyleVaeStub(code, recon_img, recon_loss, latent_loss, combined_loss, opt_step, rand_img)
+        self._code_ph = code_ph
+        self._decoded = decoded
 
     def _build_ph(self):
         with tf.variable_scope('Input'):
@@ -237,3 +244,9 @@ class StyleVaeTrainer(object):
             self._saver.restore(self._sess, ckpt)
         else:
             print('restore failed!')
+
+    def get_model(self) -> StyleVae:
+        return self._model
+
+    def get_decode_stubs(self):
+        return self._code_ph, self._decoded

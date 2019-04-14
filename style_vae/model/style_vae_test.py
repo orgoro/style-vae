@@ -32,7 +32,7 @@ class StyleVaeTester(unittest.TestCase):
 
         # ACT:
         code_mean, code_log_std = self.style_vae.encode(img)
-        code = self.style_vae.map(code_mean, code_log_std)
+        code, _ = self.style_vae.map(code_mean, code_log_std)
         recon_img = self.style_vae.decode(code)
 
         # ASSERT:

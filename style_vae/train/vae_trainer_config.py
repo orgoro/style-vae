@@ -11,8 +11,8 @@ class VaeTrainerConfig:
     num_epochs: int = 20
     lr: float = 2e-5
     recon_loss: str = 'perceptual'
-    latent_weight: float = 0.5
-    data_regex: str = path.join('/data', 'ffhq', '*.png')
+    latent_weight: float = 2.
+    data_regex: str = path.join('/data', 'ffhq-256', '*.png')
 
     def __str__(self):
         res = 'VaeTrainerConfig:\n'

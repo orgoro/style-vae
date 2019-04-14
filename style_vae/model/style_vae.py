@@ -13,8 +13,8 @@ from style_vae.model.layers import VaeLayers
 
 @dataclass
 class Config(object):
-    code_size: int = 256
-    img_dim: int = 64
+    code_size: int = 512
+    img_dim: int = 128
     batch_size: int = 32
     num_channels: int = 3
     fmap_base: int = 8192
@@ -78,8 +78,10 @@ class StyleVae:
             x = tf.random_normal(shape=(tf.shape(code_mean)[0], code_mean.shape[1]))
             x = x * tf.exp(code_log_std) + code_mean
 
+        x_ph = tf.placeholder_with_default(x, shape=x.shape)
+        x = tf.identity(x_ph)
         with tf.variable_scope('Mapper'):
             for l in range(self.config.mapper_layers):
                 x = VaeLayers.map_cell(x)
-            return x
+            return x, x_ph
 
