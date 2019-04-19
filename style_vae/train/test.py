@@ -29,7 +29,7 @@ def plot_manifold():
     code_size = model.config.code_size
     img_dim = model.config.img_dim
 
-    manifold = _generate_manifold(code_size, gs)
+    manifold = _generate_manifold_random(code_size, gs)
     manifold_shape = manifold.shape
 
     manifold_img = np.empty((gs, gs, img_dim, img_dim, 3))
@@ -61,6 +61,12 @@ def _generate_manifold(code_size: int, grid_size: int) -> np.ndarray:
 
     return manifold
 
+def _generate_manifold_random(code_size: int, grid_size: int) -> np.ndarray:
+    manifold = np.zeros((grid_size, grid_size, code_size))
+    for i in range(grid_size):
+        for j in range(grid_size):
+            manifold[i, j] = np.random.randn(1, code_size)
+    return manifold
 
 def _build_trainer(reload_model=True, grid_size=11) -> (StyleVaeTrainer, tf.Session):
     # model

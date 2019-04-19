@@ -157,7 +157,9 @@ class StyleVaeTrainer(object):
                 perceptual_model = PerceptualModel()
                 f1 = perceptual_model(img_ph)
                 f2 = perceptual_model(recon_img)
-                recon_loss = tf.reduce_mean(tf.reduce_sum(tf.square(f1 - f2), axis=1))
+                recon_loss = 0.
+                for ff1, ff2 in zip(f1, f2):
+                    recon_loss += tf.reduce_mean(tf.reduce_sum(tf.square(ff1 - ff2), axis=1))
             elif loss_type == 'l2':
                 recon_loss = tf.reduce_mean(loss.binary_crossentropy(img_ph, recon_img))
             else:

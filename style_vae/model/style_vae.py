@@ -13,14 +13,14 @@ from style_vae.model.layers import VaeLayers
 
 @dataclass
 class Config(object):
-    code_size: int = 512
-    img_dim: int = 256
+    code_size: int = 256
+    img_dim: int = 64
     batch_size: int = 16
     num_channels: int = 3
     fmap_base: int = 8192
     fmap_decay: int = 1.0
     fmap_max: int = 512
-    mapper_layers: int = 8
+    mapper_layers: int = 4
     seed: int = 42
 
     def __str__(self):

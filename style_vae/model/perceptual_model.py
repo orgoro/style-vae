@@ -24,10 +24,10 @@ class PerceptualModel(object):
         self._img_shape = img_shape
         self._build_graph()
 
-    def __call__(self, img: tf.Tensor) -> tf.Tensor:
+    def __call__(self, img: tf.Tensor) -> List[tf.Tensor]:
         return self.get_feature(img)
 
-    def get_feature(self, img: tf.Tensor) -> tf.Tensor:
+    def get_feature(self, img: tf.Tensor) -> List[tf.Tensor]:
         """ get perceptual feature from imge
         :param img: image tensor NWHC float32 tensor
         :return: feature (N,feature_len) tensor
@@ -44,7 +44,7 @@ class PerceptualModel(object):
             # flatten
             if isinstance(x, list):
                 x = [layers.Flatten()(feature) for feature in x]
-                x = tf.concat(x, axis=1)
+                # x = tf.concat(x, axis=1)
             else:
                 x = layers.Flatten()(x)
 
