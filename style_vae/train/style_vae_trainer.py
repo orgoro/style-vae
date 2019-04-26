@@ -114,8 +114,8 @@ class StyleVaeTrainer(object):
         with tf.variable_scope('Loss'):
             latent_loss = self._build_latent_loss(code_mean, code_log_std)
             recon_loss = self._build_recon_loss(img_ph, recon_img)
-            adv_loss = fake - real
-            trick_loss = real - fake
+            adv_loss = tf.reduce_sum(fake - real)
+            trick_loss = tf.reduce_sum(real - fake)
             combined_loss = latent_loss + recon_loss + trick_loss
 
         vars_d = tf.trainable_variables('Discriminator')
