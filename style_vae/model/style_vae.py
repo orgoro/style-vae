@@ -100,4 +100,5 @@ class StyleVae:
                 x = VaeLayers.map_cell(x)
 
             x = layers.Dense(1)(x)
+            x = tf.sigmoid(x)
             return x

@@ -96,9 +96,9 @@ class StyleVaeTrainer(object):
     def _build_graph(self):
         img_ph = self._build_ph()
 
-        code_mean, code_log_std = self._model.encode(img_ph)
-
         with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
+            code_mean, code_log_std = self._model.encode(img_ph)
+
             zeros = tf.zeros_like(code_mean)
             code_mean_pad = tf.concat([code_mean, zeros], 0)
             code_log_std_pad = tf.concat([code_log_std, zeros], 0)
