@@ -96,7 +96,7 @@ class StyleVae:
                 x = VaeLayers.cell_down(x, f_maps)
 
             x = layers.Flatten()(x)
-            for l in range(self.config.discriminator_layers):
+            for l in range(self.config.discrim_layers):
                 x = VaeLayers.map_cell(x)
 
             x = layers.Dense(1)(x)
