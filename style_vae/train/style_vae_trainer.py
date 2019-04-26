@@ -50,8 +50,10 @@ class StyleVaeStub:
     recon_img: tf.Tensor
     recon_loss: tf.Tensor
     latent_loss: tf.Tensor
+    adv_loss: tf.Tensor
     combined_loss: tf.Tensor
-    opt_step: tf.Operation
+    opt_step_g: tf.Operation
+    opt_step_d: tf.Operation
     rand_img: tf.Tensor
 
     def get_validate_fetch(self) -> dict:
@@ -60,10 +62,11 @@ class StyleVaeStub:
                 'rand_img': self.rand_img,
                 'recon_loss': self.recon_loss,
                 'latent_loss': self.latent_loss,
+                'adv_loss': self.adv_loss,
                 'comb_loss': self.combined_loss}
 
     def get_train_fetch(self) -> dict:
-        return {**{'opt_step': self.opt_step}, **self.get_validate_fetch()}
+        return {**{'opt_step_g': self.opt_step_g, 'opt_step_d': self.opt_step_d}, **self.get_validate_fetch()}
 
 
 class StyleVaeTrainer(object):
@@ -103,17 +106,36 @@ class StyleVaeTrainer(object):
 
             decoded = self._model.decode(code)
             recon_img, rand_img = tf.split(decoded, 2)
+            
+        with tf.variable_scope('Discriminator'):
+            fake = self._model.discriminate(rand_img)
+            real = self._model.discriminate(img_ph)
 
         with tf.variable_scope('Loss'):
             latent_loss = self._build_latent_loss(code_mean, code_log_std)
             recon_loss = self._build_recon_loss(img_ph, recon_img)
-            combined_loss = latent_loss + recon_loss
+            adv_loss = fake - real
+            trick_loss = real - fake
+            combined_loss = latent_loss + recon_loss + trick_loss
+
+        vars_d = tf.trainable_variables('Discriminator')
+        vars_g = tf.trainable_variables('Generator')
 
         with tf.variable_scope('Optimizer'):
             optimizer = tf.train.AdamOptimizer(self._config.lr)
-            opt_step = optimizer.minimize(combined_loss, global_step=self._global_step)
+            opt_step_g = optimizer.minimize(combined_loss, var_list=vars_g, global_step=self._global_step)
+            with tf.control_dependencies([opt_step_g]):
+                opt_step_d = optimizer.minimize(adv_loss, var_list=vars_d)
 
-        self._stub = StyleVaeStub(code, recon_img, recon_loss, latent_loss, combined_loss, opt_step, rand_img)
+        self._stub = StyleVaeStub(code,
+                                  recon_img,
+                                  recon_loss,
+                                  latent_loss,
+                                  adv_loss,
+                                  combined_loss,
+                                  opt_step_g,
+                                  opt_step_d,
+                                  rand_img)
         self._code_ph = code_ph
         self._decoded = decoded
 
@@ -175,25 +197,27 @@ class StyleVaeTrainer(object):
 
     def _add_summary(self):
         with tf.variable_scope('Summary'):
-            train_sum_comb_loss = tf.summary.scalar('train/comb_loss', self._stub.combined_loss)
-            train_sum_latent_loss = tf.summary.scalar('train/latent_loss', self._stub.latent_loss)
-            train_sum_recon_loss = tf.summary.scalar('train/recon_loss', self._stub.recon_loss)
-            train_sum_recon = tf.summary.image('train/recon', tf.clip_by_value(self._stub.recon_img, 0, 1))
-            train_sum_src = tf.summary.image('train/src', self._img_ph)
-            train_sum_rand = tf.summary.image('train/rand', tf.clip_by_value(self._stub.rand_img, 0, 1))
-            train_loss_summary = tf.summary.merge([train_sum_comb_loss, train_sum_latent_loss, train_sum_recon_loss])
-            train_imgs_summary = tf.summary.merge([train_sum_recon, train_sum_src, train_sum_rand])
+            ts_comb_loss = tf.summary.scalar('train/comb_loss', self._stub.combined_loss)
+            ts_latent_loss = tf.summary.scalar('train/latent_loss', self._stub.latent_loss)
+            ts_adv_loss = tf.summary.scalar('train/adv_loss', self._stub.adv_loss)
+            ts_recon_loss = tf.summary.scalar('train/recon_loss', self._stub.recon_loss)
+            ts_recon = tf.summary.image('train/recon', tf.clip_by_value(self._stub.recon_img, 0, 1))
+            ts_src = tf.summary.image('train/src', self._img_ph)
+            ts_rand = tf.summary.image('train/rand', tf.clip_by_value(self._stub.rand_img, 0, 1))
+            ts_loss = tf.summary.merge([ts_comb_loss, ts_latent_loss, ts_adv_loss, ts_recon_loss])
+            ts_imgs = tf.summary.merge([ts_recon, ts_src, ts_rand])
 
-            val_sum_comb_loss = tf.summary.scalar('val/comb_loss', self._stub.combined_loss)
-            val_sum_latent_loss = tf.summary.scalar('val/latent_loss', self._stub.latent_loss)
-            val_sum_recon_loss = tf.summary.scalar('val/recon_loss', self._stub.recon_loss)
-            val_sum_recon = tf.summary.image('val/recon', tf.clip_by_value(self._stub.recon_img, 0, 1))
+            vs_comb_loss = tf.summary.scalar('val/comb_loss', self._stub.combined_loss)
+            vs_latent_loss = tf.summary.scalar('val/latent_loss', self._stub.latent_loss)
+            vs_adv_loss = tf.summary.scalar('val/adv_loss', self._stub.adv_loss)
+            vs_recon_loss = tf.summary.scalar('val/recon_loss', self._stub.recon_loss)
+            vs_recon = tf.summary.image('val/recon', tf.clip_by_value(self._stub.recon_img, 0, 1))
             train_sum_rand = tf.summary.image('val/rand', tf.clip_by_value(self._stub.rand_img, 0, 1))
-            val_sum_src = tf.summary.image('val/src', self._img_ph)
-            val_loss_summary = tf.summary.merge([val_sum_comb_loss, val_sum_latent_loss, val_sum_recon_loss])
-            val_imgs_summary = tf.summary.merge([val_sum_recon, val_sum_src, train_sum_rand])
+            vs_src = tf.summary.image('val/src', self._img_ph)
+            vs_loss = tf.summary.merge([vs_comb_loss, vs_latent_loss, vs_recon_loss, vs_adv_loss])
+            vs_imgs = tf.summary.merge([vs_recon, vs_src, train_sum_rand])
 
-            self._summ = StyleVaeSummary(val_loss_summary, val_imgs_summary, train_loss_summary, train_imgs_summary)
+            self._summ = StyleVaeSummary(vs_loss, vs_imgs, ts_loss, ts_imgs)
 
     def train(self):
         fetches = self._stub.get_train_fetch()

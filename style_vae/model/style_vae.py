@@ -21,6 +21,7 @@ class Config(object):
     fmap_decay: int = 1.0
     fmap_max: int = 512
     mapper_layers: int = 4
+    discrim_layers: int = 4
     seed: int = 42
 
     def __str__(self):
@@ -73,15 +74,30 @@ class StyleVae:
 
         return x
 
-    def map(self, code_mean: tf.Tensor, code_log_std: tf.Tensor) -> tf.Tensor:
+    def map(self, code_mean: tf.Tensor, code_log_std: tf.Tensor) -> (tf.Tensor, tf.Tensor):
         with tf.variable_scope('Reparam-Trick'):
             x = tf.random_normal(shape=(tf.shape(code_mean)[0], code_mean.shape[1]))
             x = x * tf.exp(code_log_std) + code_mean
 
-        x_ph = tf.placeholder_with_default(x, shape=x.shape)
-        x = tf.identity(x_ph)
         with tf.variable_scope('Mapper'):
+            x_ph = tf.placeholder_with_default(x, shape=x.shape)
+            x = tf.identity(x_ph)
             for l in range(self.config.mapper_layers):
                 x = VaeLayers.map_cell(x)
             return x, x_ph
 
+    def discriminate(self, img):
+        with tf.variable_scope('Discriminate', reuse=tf.AUTO_REUSE):
+            log2_dim = int(np.log2(self.config.img_dim))
+            x = VaeLayers.from_image(img, log2_dim)
+
+            for res in np.arange(log2_dim, 2, -1):
+                f_maps = (self.nf(res - 1), self.nf(res - 2))
+                x = VaeLayers.cell_down(x, f_maps)
+
+            x = layers.Flatten()(x)
+            for l in range(self.config.discriminator_layers):
+                x = VaeLayers.map_cell(x)
+
+            x = layers.Dense(1)(x)
+            return x
