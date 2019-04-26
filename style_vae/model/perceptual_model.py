@@ -9,7 +9,7 @@ class PerceptualModel(object):
     _type_2_layer = {'vgg16': ['block1_conv1', 'block2_conv1', 'block3_conv1'],
                      'vgg19': ['block1_conv1', 'block2_conv1', 'block3_conv1']}
 
-    def __init__(self, model_type: str = 'vgg16', layer_names: List[str] = None, img_shape: tuple = (256, 256, 3)):
+    def __init__(self, model_type: str = 'vgg16', layer_names: List[str] = None, img_shape: tuple = (64, 64, 3)):
         """
         :param model_type: model type for underlying model see PerceptualModel.Types default is vgg16
         :param layer_names: list of layer names to create the perceptual feature or None for default
