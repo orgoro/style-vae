@@ -108,14 +108,15 @@ class StyleVaeTrainer(object):
             recon_img, rand_img = tf.split(decoded, 2)
             
         with tf.variable_scope('Discriminator'):
-            fake = self._model.discriminate(rand_img)
-            real = self._model.discriminate(img_ph)
+            imgs = tf.concat((rand_img, img_ph), axis=0)
+            scores = self._model.discriminate(imgs)
+            fake, real = tf.split(scores, 2)
 
         with tf.variable_scope('Loss'):
             latent_loss = self._build_latent_loss(code_mean, code_log_std)
             recon_loss = self._build_recon_loss(img_ph, recon_img)
-            adv_loss = tf.reduce_sum(real - fake)
-            trick_loss = tf.reduce_sum(fake)
+            adv_loss = tf.reduce_sum(real - fake) * self._config.adv_weight
+            trick_loss = tf.reduce_sum(fake) * self._config.adv_weight
             combined_loss = latent_loss + recon_loss + trick_loss
 
         vars_d = tf.trainable_variables('Discriminator')
