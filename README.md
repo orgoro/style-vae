@@ -3,10 +3,10 @@
 
 ## Abstract
 VAE are among the state of the art generative models, but have recently lost their shine to GANs. 
-The most prominent work recently in which is the style-gan by [Karras et al.](https://arxiv.org/abs/1812.04948) 
+The most prominent work recently in which is the **Style-GAN** by [Karras et al.](https://arxiv.org/abs/1812.04948) 
 VAE has the ability to encode as well as decode - this advantage over the style-gan is useful in many downstream tasks.
 In this work we combine the style based architecture and VAE and achieve state of the art reconstruction and generation. 
-We follow the work of [Hou et al.](https://ieeexplore.ieee.org/abstract/document/7926714/) 
+We follow the work of [Hou et al.](https://ieeexplore.ieee.org/abstract/document/7926714/) **DFC-VAE** 
 to use perceptual loss and we compare our results to this work.
 
 ## Dataset
