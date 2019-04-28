@@ -33,7 +33,7 @@ The loss is comprised out of two components:
    
    ![random](style_vae/doc/interpolation.gif)
 
-## Comparison to state of The Art
+## Comparison to State of the Art
 
    ![compare](style_vae/doc/compare-rand.png)
 
