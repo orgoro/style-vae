@@ -75,7 +75,7 @@ class StyleVaeTrainer(object):
         self._sess = sess
         self._global_step = tf.train.create_global_step()
 
-        self._img_iter_init = None
+        self._iter_init = None
         self._num_train = None
         self._num_val = None
         self._num_test = None
@@ -255,3 +255,10 @@ class StyleVaeTrainer(object):
 
     def get_decode_stubs(self):
         return self._code_ph, self._decoded
+
+    def get_encode_stubs(self):
+        return self._img_ph, self._stub.recon_img
+
+    def init_iter(self):
+        self._sess.run(self._iter_init)
+

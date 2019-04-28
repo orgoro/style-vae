@@ -20,7 +20,7 @@ The loss is comprised out of two components:
 
 ## Reconstruction Results
 
-    ![recon](style_vae/doc/recon.png)
+   ![recon](style_vae/doc/recon.jpg)
 
 ## Random Sample Results
 
@@ -49,12 +49,22 @@ The loss is comprised out of two components:
   * All data should be saved under `/data/svae/*.png`
   
 ## Training Curves
+![curve](style_vae/doc/curve.png)
 
-### Train
+## Test
+Test results can be seen in the visuals part
 
-### Validation
-
-### Test
-test results can be seen in the visuals part
+## Additional Experiments
+We used the provided model to train on the FFHQ dataset to produce a 256x256 results:
+![64-256](style_vae/doc/64-256.png)
  
-  
+## Future Work
+* **Adversarial Training**- Adding an adversarial term to improve generation of hair and fine details (hair)
+ and background especially in the high resulotion models
+* **Weighted KL-Divergence**- The hierarchical structure of the code injection would allow weighted
+ KL-divergence loss term where we allow the VAE encoder to different divergence fine/coarse features. 
+ This flexibility makes sense perhaps because fine details like hairs are more normally distributed,
+ while coarse feature behave differently (not many dark skin red heads i.e.) 
+
+## Trained Models
+Available soon... 

@@ -12,7 +12,7 @@ class VaeTrainerConfig:
     lr: float = 2e-5
     recon_loss: str = 'perceptual'
     latent_weight: float = 2.
-    data_regex: str = path.join('/data', 'ffhq_256', '*.png')
+    data_regex: str = path.join('/data', 'svae', '*.jpg')
 
     def __str__(self):
         res = 'VaeTrainerConfig:\n'
