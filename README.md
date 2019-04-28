@@ -7,8 +7,11 @@ The most prominent work recently in which is the style-gan by [Karras et al.](ht
 VAE has the ability to encode as well as decode - this advantage over the style-gan is useful in many downstream tasks.
 In this work we combine the style based architecture and VAE and achieve state of the art reconstruction and generation. 
 We follow the work of [Hou et al.](https://ieeexplore.ieee.org/abstract/document/7926714/) 
-to use perceptual loss and we compare our results to it.
+to use perceptual loss and we compare our results to this work.
 
+## Dataset
+* [Celeb-A](http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html) - the results below model `(64x64)`
+* [FFHQ](https://github.com/NVlabs/ffhq-dataset/blob/master/download_ffhq.py) - for other models `(128x128, 256x256)`
 
 ## Architecture
 ![arch](style_vae/doc/arch.png)
