@@ -24,6 +24,7 @@ class VaeTrainerConfig:
     num_epochs: int = 20
     lr: float = 2e-5
     recon_loss: str = 'perceptual'
+    recon_weight: float = 0.
     latent_weight: float = 0.
     adv_weight: float = 1e1
     data_regex: str = path.join('/data', 'ffhq_256', '*.png')
@@ -133,7 +134,7 @@ class StyleVaeTrainer(object):
 
         with tf.variable_scope('Loss'):
             latent_loss = self._build_latent_loss(code_mean, code_log_std)
-            recon_loss = self._build_recon_loss(img_ph, recon_img)
+            recon_loss = self._build_recon_loss(img_ph, recon_img) * self._config.recon_weight
             adv_loss = tf.reduce_sum(real - fake) * self._config.adv_weight
             trick_loss = tf.reduce_sum(fake) * self._config.adv_weight
             combined_loss = latent_loss + recon_loss + trick_loss
@@ -232,10 +233,10 @@ class StyleVaeTrainer(object):
             vs_adv_loss = tf.summary.scalar('val/adv_loss', self._stub.adv_loss)
             vs_recon_loss = tf.summary.scalar('val/recon_loss', self._stub.recon_loss)
             vs_recon = tf.summary.image('val/recon', tf.clip_by_value(self._stub.recon_img, 0, 1))
-            train_sum_rand = tf.summary.image('val/rand', tf.clip_by_value(self._stub.rand_img, 0, 1))
+            vs_rand = tf.summary.image('val/rand', tf.clip_by_value(self._stub.rand_img, 0, 1))
             vs_src = tf.summary.image('val/src', self._img_ph)
             vs_loss = tf.summary.merge([vs_comb_loss, vs_latent_loss, vs_recon_loss, vs_adv_loss])
-            vs_imgs = tf.summary.merge([vs_recon, vs_src, train_sum_rand])
+            vs_imgs = tf.summary.merge([vs_recon, vs_src, vs_rand])
 
             self._summ = StyleVaeSummary(vs_loss, vs_imgs, ts_loss, ts_imgs)
 
@@ -258,9 +259,10 @@ class StyleVaeTrainer(object):
         avg_loss = 0
         for step in progress:
             res = self._sess.run(fetches)
-            loss_c, loss_r, loss_l = res['comb_loss'], res['recon_loss'], res['latent_loss']
+            loss_c, loss_r, loss_l, loss_a = res['comb_loss'], res['recon_loss'], res['latent_loss'], res['adv_loss']
             progress.set_description(f'{phase} epoch {self.EPOCH:^3}/{self._config.num_epochs:3}|{step:^4}/{steps:^4}'
-                                     f' | loss: {loss_c:^.4}, recon_loss: {loss_r:^.4}, latent_loss: {loss_l:^.4}')
+                                     f' | loss: {loss_c:^.4}, recon_loss: {loss_r:^.4},'
+                                     f' latent_loss: {loss_l:^.4} adv_loss: {loss_a:^.4}')
             avg_loss += loss_c
             self._graph_writer.add_summary(res['summary'], global_step=res['global_step'])
 
