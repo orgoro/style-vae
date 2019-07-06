@@ -14,7 +14,25 @@ from style_vae.train_output import OUT
 from style_vae.model import StyleVae, PerceptualModel
 
 # same category:
-from style_vae.train.vae_trainer_config import VaeTrainerConfig
+
+@dataclass
+class VaeTrainerConfig:
+    name: str = 'default-vae'
+    reload_model: bool = True
+    save_model: bool = True
+    batch_size: int = 16
+    num_epochs: int = 20
+    lr: float = 2e-5
+    recon_loss: str = 'perceptual'
+    latent_weight: float = 0.
+    adv_weight: float = 1e1
+    data_regex: str = path.join('/data', 'ffhq_256', '*.png')
+
+    def __str__(self):
+        res = 'VaeTrainerConfig:\n'
+        for k, v in vars(self).items():
+            res += f'o {k:15}|{v}\n'
+        return res
 
 
 @dataclass

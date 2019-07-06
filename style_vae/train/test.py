@@ -12,8 +12,7 @@ from style_vae.model import StyleVae, Config
 from style_vae.train_output import OUT
 
 # same category:
-from style_vae.train.style_vae_trainer import StyleVaeTrainer
-from style_vae.train.train import VaeTrainerConfig
+from style_vae.train.style_vae_trainer import StyleVaeTrainer, VaeTrainerConfig
 
 
 def plot_manifold():
