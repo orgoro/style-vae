@@ -1,15 +1,12 @@
 # 3rd party:
-from dataclasses import dataclass
 import fire
 import tensorflow as tf
-from os import path
 
 # different category:
 from style_vae.model import StyleVae, Config
 
 # same category:
 from style_vae.train.style_vae_trainer import StyleVaeTrainer, VaeTrainerConfig
-
 
 
 def train(load: bool):
