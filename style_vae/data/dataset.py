@@ -1,7 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-
 # 3rd party:
 from tensorflow.keras import datasets
 from dataclasses import dataclass
@@ -53,7 +49,11 @@ class Dataset:
                        np.float32(test_64[:, :, :, None] / 255.))
 
 
-if __name__ == '__main__':
+def example():
     mnist_64 = Dataset.get_mnist64()
     print(mnist_64)
+
+
+if __name__ == '__main__':
+    example()
 

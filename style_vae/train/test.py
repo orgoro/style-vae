@@ -1,7 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-
 # 3rd party:
 import fire
 import tensorflow as tf
@@ -17,7 +13,7 @@ from style_vae.train_output import OUT
 
 # same category:
 from style_vae.train.style_vae_trainer import StyleVaeTrainer
-from style_vae.train.vae_trainer_config import VaeTrainerConfig
+from style_vae.train.train import VaeTrainerConfig
 
 
 def plot_manifold():
