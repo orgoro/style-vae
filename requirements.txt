@@ -5,10 +5,11 @@ pylint
 pytest
 travis
 pandas
-dataclasses
 numpy
 matplotlib
 tqdm
 pandas
 fire
 opencv-python
+imageio
+pyyaml

@@ -7,6 +7,7 @@ from tqdm import tqdm
 from os import path
 import yaml
 import glob
+from typing import Optional
 
 # different category:
 from style_vae.train_output import OUT
@@ -78,17 +79,17 @@ class StyleVaeTrainer(object):
         self._sess = sess
         self._global_step = tf.train.create_global_step()
 
-        self._img_iter_init = None
+        self._iter_init = None
         self._num_train = None
         self._num_val = None
         self._num_test = None
-        self._ph = None  # type: StyleVaePh
-        self._stub = None  # type: StyleVaeStub
+        self._ph = None  # type: Optional[StyleVaePh]
+        self._stub = None  # type: Optional[StyleVaeStub]
         self._build_graph()
 
         self._saver = tf.train.Saver(max_to_keep=2)
         self._graph_writer = tf.summary.FileWriter(OUT, graph=self._sess.graph)
-        self._summ = None  # type: StyleVaeSummary
+        self._summ = None  # type: Optional[StyleVaeSummary]
         self._add_summary()
         with open(path.join(OUT, 'config.yaml'), 'w') as f:
             yaml.dump([self._config, self._model.config], f, default_flow_style=False)
@@ -280,3 +281,10 @@ class StyleVaeTrainer(object):
 
     def get_decode_stubs(self):
         return self._code_ph, self._decoded
+
+    def get_encode_stubs(self):
+        return self._img_ph, self._stub.recon_img
+
+    def init_iter(self):
+        self._sess.run(self._iter_init)
+
